@@ -11,6 +11,61 @@ $stmt->execute([$user_id]);
 $current_user = $stmt->fetch();
 $user_name = ($current_user && $current_user['first_name']) ? ($current_user['first_name'] . ' ' . $current_user['last_name']) : 'Owner';
 $ownerNavActive = 'gallery-management';
+
+function tableExists($pdo, $tableName)
+{
+    $tableName = str_replace("'", "\\'", $tableName);
+    $result = $pdo->query("SHOW TABLES LIKE '$tableName'");
+    return (bool)$result && $result->fetch();
+}
+
+$galleryTable = null;
+$galleryCandidates = ['gallery', 'gallery_images', 'facility_gallery', 'facility_images', 'images', 'photos'];
+foreach ($galleryCandidates as $candidate) {
+    if (tableExists($pdo, $candidate)) {
+        $galleryTable = $candidate;
+        break;
+    }
+}
+
+$galleryItems = [];
+$galleryColumns = [];
+if ($galleryTable) {
+    $galleryColumns = $pdo->query("SHOW COLUMNS FROM $galleryTable")->fetchAll(PDO::FETCH_COLUMN);
+    $orderField = in_array('created_at', $galleryColumns) ? 'created_at' : (in_array('uploaded_at', $galleryColumns) ? 'uploaded_at' : (in_array('updated_at', $galleryColumns) ? 'updated_at' : ''));
+    $sql = "SELECT * FROM $galleryTable" . ($orderField ? " ORDER BY $orderField DESC" : "") . " LIMIT 40";
+    $galleryItems = $pdo->query($sql)->fetchAll();
+}
+
+$imageFieldCandidates = ['image_path', 'photo_path', 'file_path', 'image_url', 'photo_url', 'path', 'filename', 'file_name'];
+$captionFieldCandidates = ['caption', 'title', 'name', 'description'];
+$facilityFieldCandidates = ['facility_id', 'room_id'];
+
+function findField(array $columns, array $candidates)
+{
+    foreach ($candidates as $field) {
+        if (in_array($field, $columns, true)) {
+            return $field;
+        }
+    }
+    return null;
+}
+
+$imageField = findField($galleryColumns, $imageFieldCandidates);
+$captionField = findField($galleryColumns, $captionFieldCandidates);
+$facilityField = findField($galleryColumns, $facilityFieldCandidates);
+
+$facilityNames = [];
+if ($facilityField && !empty($galleryItems)) {
+    $facilityIds = array_unique(array_filter(array_column($galleryItems, $facilityField)));
+    if (!empty($facilityIds)) {
+        $placeholders = implode(',', array_fill(0, count($facilityIds), '?'));
+        $stmt = $pdo->prepare("SELECT facility_id, name FROM facilities WHERE facility_id IN ($placeholders)");
+        $stmt->execute($facilityIds);
+        $facilityNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,7 +86,7 @@ $ownerNavActive = 'gallery-management';
                     <h2 class="topbar-title">Gallery Management</h2>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Search gallery images or facility photos...">
+                        <input type="text" id="gallerySearchInput" placeholder="Search gallery images or facility photos...">
                     </div>
                 </div>
                 <div class="topbar-right">
@@ -49,9 +104,42 @@ $ownerNavActive = 'gallery-management';
                 <div class="section-card">
                     <div class="section-header">
                         <h3 class="section-title">Gallery Management</h3>
+                        <button class="section-action" onclick="alert('Image upload will be added later');">Upload Photo</button>
                     </div>
                     <div class="section-body">
-                        <p>Use this page to upload facility photos, update galleries, and manage visual content for your resort listing.</p>
+                        <?php if (!$galleryTable): ?>
+                            <div class="notification-card">
+                                <p>No gallery table found in the database yet.</p>
+                                <p>Expected tables include <strong>gallery</strong>, <strong>gallery_images</strong>, <strong>facility_gallery</strong>, or <strong>facility_images</strong>.</p>
+                            </div>
+                        <?php elseif (empty($galleryItems)): ?>
+                            <div class="notification-card">
+                                <p>You have not added any gallery pictures yet.</p>
+                                <p>Upload photos of rooms, resort grounds, and facilities to make the booking experience more visual.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="grid-3-3" style="gap: 18px;">
+                                <?php foreach ($galleryItems as $item): ?>
+                                    <?php
+                                        $imageSrc = $imageField && !empty($item[$imageField]) ? $item[$imageField] : '';
+                                        $caption = $captionField ? trim($item[$captionField]) : '';
+                                        $facilityLabel = $facilityField && isset($item[$facilityField]) ? ($facilityNames[$item[$facilityField]] ?? 'Facility #'.$item[$facilityField]) : '';
+                                    ?>
+                                    <div class="gallery-card">
+                                        <?php if ($imageSrc): ?>
+                                            <img src="<?php echo htmlspecialchars($imageSrc); ?>" alt="<?php echo htmlspecialchars($caption ?: 'Gallery image'); ?>">
+                                        <?php else: ?>
+                                            <div class="gallery-placeholder"><i class="fas fa-image"></i></div>
+                                        <?php endif; ?>
+                                        <div class="gallery-caption">
+                                            <p class="gallery-title"><?php echo htmlspecialchars($caption ?: 'Untitled Image'); ?></p>
+                                            <?php if ($facilityLabel): ?><p class="gallery-meta"><?php echo htmlspecialchars($facilityLabel); ?></p><?php endif; ?>
+                                            <?php if (!empty($item['created_at'])): ?><p class="gallery-meta"><?php echo date('M d, Y', strtotime($item['created_at'])); ?></p><?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </main>
@@ -59,6 +147,16 @@ $ownerNavActive = 'gallery-management';
         </div>
     </div>
     <script>
+        const gallerySearchInput = document.getElementById('gallerySearchInput');
+        const galleryCards = document.querySelectorAll('.gallery-card');
+        gallerySearchInput.addEventListener('keyup', function() {
+            const term = this.value.toLowerCase();
+            galleryCards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(term) ? '' : 'none';
+            });
+        });
+
         document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
             e.preventDefault();
             document.getElementById('logoutConfirmModal').style.display = 'flex';
