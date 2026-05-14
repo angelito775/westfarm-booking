@@ -169,67 +169,20 @@ $today = date('l, F j, Y');
 <body>
     <div class="dashboard-container">
         <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo-container">
-                    <svg class="logo-svg" viewBox="0 0 40 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 0L32 24H8L20 0Z" fill="#2F3D2E" />
-                        <path d="M20 4L28 20H12L20 4Z" fill="#FAF8F4" />
-                        <path d="M8 26H32V28H8V26Z" fill="#2F3D2E" />
-                        <path d="M12 30H28V31H12V30Z" fill="#2F3D2E" />
-                    </svg>
-                    <div class="logo-text">
-                        <h1>West Farm</h1>
-                        <p>Resort and Hotel</p>
-                    </div>
-                </div>
-                <span class="portal-badge">Owner Portal</span>
-            </div>
-
-            <nav class="sidebar-nav">
-                <button class="nav-item active" onclick="navigateTo('dashboard')">
-                    <i class="fas fa-th-large"></i>
-                    <span>Dashboard</span>
-                </button>
-                <button class="nav-item" onclick="navigateTo('bookings')">
-                    <i class="fas fa-calendar"></i>
-                    <span>My Bookings</span>
-                </button>
-                <button class="nav-item" onclick="navigateTo('facilities')">
-                    <i class="fas fa-building"></i>
-                    <span>My Facilities</span>
-                </button>
-                <button class="nav-item" onclick="navigateTo('payments')">
-                    <i class="fas fa-wallet"></i>
-                    <span>Payments</span>
-                </button>
-                <button class="nav-item" onclick="navigateTo('reports')">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Reports</span>
-                </button>
-                <button class="nav-item" onclick="navigateTo('settings')">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </button>
-            </nav>
-
-            <div class="sidebar-footer">
-                <a href="#" class="logout-btn" id="openLogoutModalBtn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sign Out</span>
-                </a>
-            </div>
-        </aside>
+        <?php
+        $ownerNavActive = 'business-overview';
+        include 'sidebar.php';
+        ?>
 
         <!-- MAIN CONTENT -->
         <div class="main-wrapper">
             <!-- TOPBAR -->
             <header class="topbar">
                 <div class="topbar-left">
-                    <h2 class="topbar-title">Overview</h2>
+                    <h2 class="topbar-title">Business Overview</h2>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Search bookings, orders, or guests...">
+                        <input type="text" placeholder="Search bookings, guests, or facilities...">
                     </div>
                 </div>
 
@@ -377,7 +330,7 @@ $today = date('l, F j, Y');
                 <div class="grid-2-3" style="margin-top: 24px;">
                     <div class="section-card">
                         <div class="section-header">
-                            <h3 class="section-title">My Bookings</h3>
+                            <h3 class="section-title">Bookings & Reservations</h3>
                             <button class="section-action">View All</button>
                         </div>
                         <div class="section-body">
@@ -572,10 +525,6 @@ $today = date('l, F j, Y');
                 }
             }
         });
-
-        function navigateTo(page) {
-            alert('Navigation to ' + page + ' coming soon!');
-        }
 
         function goToAdmin() {
             window.location.href = '../admin/index.php';
