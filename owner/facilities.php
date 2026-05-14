@@ -48,6 +48,8 @@ $sql = 'SELECT ' . implode(', ', $selectFields) . ' FROM facilities ORDER BY nam
 $stmt = $pdo->query($sql);
 $facilities = $stmt->fetchAll();
 $categoryMap = [];
+$categoryRows = [];
+
 if ($hasCategory) {
     $categoryRows = $pdo->query("SELECT category_id, name FROM categories")->fetchAll();
     foreach ($categoryRows as $category) {
@@ -123,10 +125,25 @@ if (!$hasStatus) {
                 </div>
             </header>
             <main class="main-content">
+                <?php if (isset($_GET['success']) && $_GET['success'] === 'facility_added'): ?>
+                    <div class="alert success">Facility added successfully.</div>
+                <?php elseif (isset($_GET['error'])): ?>
+                    <div class="alert error">
+                        <?php if ($_GET['error'] === 'empty_name'): ?>Facility name is required.
+                        <?php elseif ($_GET['error'] === 'empty_price'): ?>Price is required.
+                        <?php elseif ($_GET['error'] === 'invalid_price'): ?>Price must be a valid number.
+                        <?php elseif ($_GET['error'] === 'empty_category'): ?>Please select a category.
+                        <?php elseif ($_GET['error'] === 'add_failed'): ?>Unable to add facility right now. Please try again.
+                        <?php else: ?>An error occurred while saving your facility.
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
                 <div class="section-card">
                     <div class="section-header">
                         <h3 class="section-title">Facility Inventory</h3>
-                        <button class="section-action" onclick="alert('Facility creation will be added later');">Add Facility</button>
+                        <button id="addFacilityBtn" class="section-action" style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-plus"></i> Add Facility
+                        </button>
                     </div>
                     <div class="section-body">
                         <div class="grid-2-3" style="gap: 16px; margin-bottom: 24px;">
@@ -143,47 +160,53 @@ if (!$hasStatus) {
                                 <div class="status-content"><p>Closed / Maintenance</p><p><?php echo $closedFacilities; ?></p></div>
                             </div>
                         </div>
-                        <div class="table-wrapper">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Facility</th>
-                                        <?php if ($hasCategory): ?><th>Category</th><?php endif; ?>
-                                        <?php if ($hasPrice): ?><th>Price</th><?php endif; ?>
-                                        <?php if ($hasDescription): ?><th>Description</th><?php endif; ?>
-                                        <th>Bookings</th>
-                                        <th>Status</th>
-                                        <th style="text-align: right;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="facilityTableBody">
-                                    <?php if (empty($facilities)): ?>
-                                        <tr><td colspan="7" style="text-align:center; color: rgba(47, 61, 46, 0.6); padding: 32px 0;">No facilities are available yet. Add rooms or products to open them for reservations.</td></tr>
-                                    <?php else: ?>
-                                        <?php foreach ($facilities as $facility): ?>
-                                            <?php
-                                                $rawStatus = $hasStatus ? ($facility[$statusColumn] ?? '') : '';
-                                                $isOpen = $hasStatus ? facilityStatusIsOpen($rawStatus) : true;
-                                                $statusLabel = $hasStatus ? ($isOpen ? 'Open' : 'Closed') : 'Available';
-                                                $statusClass = $isOpen ? 'active' : 'inactive';
-                                                $bookingCount = $bookingCounts[$facility['facility_id']] ?? 0;
-                                            ?>
-                                            <tr>
-                                                <td style="font-weight: 600; color: #2F3D2E;"><?php echo htmlspecialchars($facility['name']); ?></td>
-                                                <?php if ($hasCategory): ?><td><?php echo htmlspecialchars($categoryMap[$facility['category_id']] ?? 'Uncategorized'); ?></td><?php endif; ?>
-                                                <?php if ($hasPrice): ?><td>₱ <?php echo number_format($facility['price'], 0); ?></td><?php endif; ?>
-                                                <?php if ($hasDescription): ?><td style="color: rgba(47, 61, 46, 0.7); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($facility['description']); ?>"><?php echo htmlspecialchars($facility['description']); ?></td><?php endif; ?>
-                                                <td><?php echo number_format($bookingCount); ?></td>
-                                                <td><span class="status-pill <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span></td>
-                                                <td style="text-align: right; white-space: nowrap;">
-                                                    <button class="action-btn edit-btn" title="Edit Facility"><i class="fas fa-pencil-alt"></i></button>
-                                                    <button class="action-btn delete-btn" title="Setup 360 Tour"><i class="fas fa-camera"></i></button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                        <div class="card-grid">
+                            <?php if (empty($facilities)): ?>
+                                <div style="grid-column: 1 / -1; text-align: center; color: rgba(47, 61, 46, 0.6); padding: 64px 0;">
+                                    No facilities are available yet. Add rooms or products to open them for reservations.
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($facilities as $facility): ?>
+                                    <?php
+                                        $rawStatus = $hasStatus ? ($facility[$statusColumn] ?? '') : '';
+                                        $isOpen = $hasStatus ? facilityStatusIsOpen($rawStatus) : true;
+                                        $statusLabel = $hasStatus ? ($isOpen ? 'Open' : 'Closed') : 'Available';
+                                        $statusClass = $isOpen ? 'active' : 'inactive';
+                                        $bookingCount = $bookingCounts[$facility['facility_id']] ?? 0;
+                                    ?>
+                                    <div class="facility-card">
+                                        <div class="facility-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                        <div class="facility-content">
+                                            <div class="facility-title"><?php echo htmlspecialchars($facility['name']); ?></div>
+                                            <div class="facility-meta">
+                                                <?php if ($hasCategory): ?>
+                                                    <span><?php echo htmlspecialchars($categoryMap[$facility['category_id']] ?? 'Uncategorized'); ?></span>
+                                                <?php endif; ?>
+                                                <?php if ($hasCategory && $hasPrice): ?> · <?php endif; ?>
+                                                <?php if ($hasPrice): ?>
+                                                    <span>₱ <?php echo number_format($facility['price'], 0); ?></span>
+                                                <?php endif; ?>
+                                                <?php if (($hasCategory || $hasPrice) && $bookingCount > 0): ?> · <?php endif; ?>
+                                                <?php if ($bookingCount > 0): ?>
+                                                    <span><?php echo number_format($bookingCount); ?> bookings</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if ($hasDescription): ?>
+                                                <div class="facility-description"><?php echo htmlspecialchars($facility['description']); ?></div>
+                                            <?php endif; ?>
+                                            <div class="facility-meta">
+                                                <span class="status-pill <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
+                                            </div>
+                                            <div class="facility-actions">
+                                                <button class="action-btn edit-btn" title="Edit Facility"><i class="fas fa-pencil-alt"></i></button>
+                                                <button class="action-btn delete-btn" title="Setup 360 Tour"><i class="fas fa-camera"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -191,21 +214,130 @@ if (!$hasStatus) {
             <div class="dashboard-footer">© 2026 West Farm Resort and Hotel · Basista, Pangasinan</div>
         </div>
     </div>
+
+    <div id="facilityModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="facilityModalTitle" class="modal-title">Add Facility</h3>
+                <button class="modal-close" onclick="closeModal('facilityModal')">&times;</button>
+            </div>
+            <form id="facilityForm" action="../logic/facility_process.php" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="action" id="facilityAction" value="add_facility">
+                    <input type="hidden" name="facility_id" id="facilityId" value="">
+
+                    <div class="form-group">
+                        <label for="facility_name">Facility Name</label>
+                        <input type="text" id="facility_name" name="name" required>
+                    </div>
+
+                    <?php if ($hasCategory): ?>
+                        <div class="form-group">
+                            <label for="facility_category">Category</label>
+                            <select id="facility_category" name="category_id" required>
+                                <option value="">Select category</option>
+                                <?php if ($hasCategory && !empty($categoryRows)) {
+                                    foreach ($categoryRows as $category) {
+                                        echo '<option value="' . $category['category_id'] . '">' . htmlspecialchars($category['name']) . '</option>';
+                                    }
+                                } ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($hasPrice): ?>
+                        <div class="form-group">
+                            <label for="facility_price">Price</label>
+                            <input type="number" id="facility_price" name="price" min="0" step="1" placeholder="0" required>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($hasDescription): ?>
+                        <div class="form-group">
+                            <label for="facility_description">Description</label>
+                            <textarea id="facility_description" name="description" rows="4" placeholder="Describe this facility"></textarea>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($hasStatus): ?>
+                        <div class="form-group">
+                            <label for="facility_status">Status</label>
+                            <select id="facility_status" name="status">
+                                <option value="active">Open</option>
+                                <option value="inactive">Closed</option>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="form-group">
+                        <label for="check_in_date">Check-in Date</label>
+                        <input type="date" id="check_in_date" name="check_in_date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="check_out_date">Check-out Date</label>
+                        <input type="date" id="check_out_date" name="check_out_date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reserve_category">Category</label>
+                        <select id="reserve_category" name="reserve_category_id" required>
+                            <option value="">Select category</option>
+                            <?php foreach ($categoryRows as $category): ?>
+                                <option value="<?php echo $category['category_id']; ?>">
+                                    <?php echo htmlspecialchars($category['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="facility_unit">Unit</label>
+                        <select id="facility_unit" name="facility_id" required>
+                            <option value="">Select unit</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('facilityModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="facilitySubmitBtn">Add Facility</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
         const facilitySearchInput = document.getElementById('facilitySearchInput');
-        const facilityRows = document.querySelectorAll('#facilityTableBody tr');
+        const facilityCards = document.querySelectorAll('.facility-card');
         facilitySearchInput.addEventListener('keyup', function() {
             const term = this.value.toLowerCase();
-            facilityRows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(term) ? '' : 'none';
+            facilityCards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(term) ? '' : 'none';
             });
         });
+
+        document.getElementById('addFacilityBtn').addEventListener('click', function() {
+            document.getElementById('facilityForm').reset();
+            document.getElementById('facilityModalTitle').innerText = 'Add Facility';
+            document.getElementById('facilityAction').value = 'add_facility';
+            document.getElementById('facilityId').value = '';
+            document.getElementById('facilitySubmitBtn').innerText = 'Add Facility';
+            openModal('facilityModal');
+        });
+
         document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            document.getElementById('logoutConfirmModal').style.display = 'flex';
+            openModal('logoutConfirmModal');
         });
-        function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
     </script>
     <div id="logoutConfirmModal" class="modal-overlay" style="display: none;">
         <div class="modal" style="max-width: 400px;">

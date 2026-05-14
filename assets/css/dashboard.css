@@ -471,6 +471,17 @@ html, body {
   gap: 18px;
 }
 
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.facility-card {
+  width: 100%;
+  border-radius: 24px;
+}
+
 .gallery-card,
 .review-card {
   background: white;
@@ -533,6 +544,72 @@ html, body {
   .grid-3-3 {
     grid-template-columns: 1fr;
   }
+}
+
+.facility-card {
+  background: white;
+  border: 1px solid #ECE8DF;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+
+.facility-card:hover {
+  box-shadow: 0 4px 12px rgba(47, 61, 46, 0.1);
+}
+
+.facility-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #F5F4F1;
+}
+
+.facility-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  background: #F5F4F1;
+  color: #9CA3AF;
+  font-size: 32px;
+}
+
+.facility-content {
+  padding: 18px;
+}
+
+.facility-title {
+  font-weight: 600;
+  color: #2F3D2E;
+  margin-bottom: 8px;
+}
+
+.facility-meta {
+  font-size: 12px;
+  color: rgba(47, 61, 46, 0.65);
+  margin-bottom: 6px;
+}
+
+.facility-description {
+  margin: 8px 0;
+  color: rgba(47, 61, 46, 0.8);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.facility-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .status-icon {
@@ -1065,7 +1142,8 @@ tbody tr:hover {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
   padding: 10px 12px;
   background: #FAF8F4;
@@ -1076,8 +1154,14 @@ tbody tr:hover {
   font-family: 'Lora', serif;
 }
 
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: #C9A961;
   box-shadow: 0 0 0 1px #C9A961;
