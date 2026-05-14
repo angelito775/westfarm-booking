@@ -51,7 +51,7 @@ $categoryMap = [];
 $categoryRows = [];
 
 if ($hasCategory) {
-    $categoryRows = $pdo->query("SELECT category_id, name FROM categories")->fetchAll();
+    $categoryRows = $pdo->query("SELECT category_id, name FROM categories ORDER BY name")->fetchAll();
     foreach ($categoryRows as $category) {
         $categoryMap[$category['category_id']] = $category['name'];
     }
@@ -127,6 +127,8 @@ if (!$hasStatus) {
             <main class="main-content">
                 <?php if (isset($_GET['success']) && $_GET['success'] === 'facility_added'): ?>
                     <div class="alert success">Facility added successfully.</div>
+                <?php elseif (isset($_GET['success']) && $_GET['success'] === 'booking_created'): ?>
+                    <div class="alert success">Booking created successfully.</div>
                 <?php elseif (isset($_GET['error'])): ?>
                     <div class="alert error">
                         <?php if ($_GET['error'] === 'empty_name'): ?>Facility name is required.
@@ -134,6 +136,9 @@ if (!$hasStatus) {
                         <?php elseif ($_GET['error'] === 'invalid_price'): ?>Price must be a valid number.
                         <?php elseif ($_GET['error'] === 'empty_category'): ?>Please select a category.
                         <?php elseif ($_GET['error'] === 'add_failed'): ?>Unable to add facility right now. Please try again.
+                        <?php elseif ($_GET['error'] === 'invalid_dates'): ?>Invalid date range. Check-out must be after check-in.
+                        <?php elseif ($_GET['error'] === 'unit_unavailable'): ?>Selected unit is not available for the chosen dates.
+                        <?php elseif ($_GET['error'] === 'booking_failed'): ?>Unable to create booking. Please try again.
                         <?php else: ?>An error occurred while saving your facility.
                         <?php endif; ?>
                     </div>
@@ -141,9 +146,14 @@ if (!$hasStatus) {
                 <div class="section-card">
                     <div class="section-header">
                         <h3 class="section-title">Facility Inventory</h3>
-                        <button id="addFacilityBtn" class="section-action" style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-plus"></i> Add Facility
-                        </button>
+                        <div style="display: flex; gap: 12px;">
+                            <button id="addFacilityBtn" class="section-action" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-plus"></i> Add Facility
+                            </button>
+                            <button id="newBookingBtn" class="section-action" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-calendar-plus"></i> New Booking
+                            </button>
+                        </div>
                     </div>
                     <div class="section-body">
                         <div class="grid-2-3" style="gap: 16px; margin-bottom: 24px;">
@@ -215,6 +225,7 @@ if (!$hasStatus) {
         </div>
     </div>
 
+    <!-- Modal for Adding Facility -->
     <div id="facilityModal" class="modal-overlay" style="display: none;">
         <div class="modal">
             <div class="modal-header">
@@ -223,7 +234,7 @@ if (!$hasStatus) {
             </div>
             <form id="facilityForm" action="../logic/facility_process.php" method="POST">
                 <div class="modal-body">
-                    <input type="hidden" name="action" id="facilityAction" value="add_facility">
+                    <input type="hidden" name="action" value="add_facility">
                     <input type="hidden" name="facility_id" id="facilityId" value="">
 
                     <div class="form-group">
@@ -247,7 +258,7 @@ if (!$hasStatus) {
 
                     <?php if ($hasPrice): ?>
                         <div class="form-group">
-                            <label for="facility_price">Price</label>
+                            <label for="facility_price">Price (per night)</label>
                             <input type="number" id="facility_price" name="price" min="0" step="1" placeholder="0" required>
                         </div>
                     <?php endif; ?>
@@ -268,35 +279,6 @@ if (!$hasStatus) {
                             </select>
                         </div>
                     <?php endif; ?>
-
-                    <div class="form-group">
-                        <label for="check_in_date">Check-in Date</label>
-                        <input type="date" id="check_in_date" name="check_in_date" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="check_out_date">Check-out Date</label>
-                        <input type="date" id="check_out_date" name="check_out_date" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="reserve_category">Category</label>
-                        <select id="reserve_category" name="reserve_category_id" required>
-                            <option value="">Select category</option>
-                            <?php foreach ($categoryRows as $category): ?>
-                                <option value="<?php echo $category['category_id']; ?>">
-                                    <?php echo htmlspecialchars($category['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="facility_unit">Unit</label>
-                        <select id="facility_unit" name="facility_id" required>
-                            <option value="">Select unit</option>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeModal('facilityModal')">Cancel</button>
@@ -306,39 +288,63 @@ if (!$hasStatus) {
         </div>
     </div>
 
-    <script>
-        function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
-        }
+    <!-- Modal for Creating New Booking/Reservation -->
+    <div id="reservationModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Booking</h3>
+                <button class="modal-close" onclick="closeModal('reservationModal')">&times;</button>
+            </div>
+            <form id="reservationForm" action="../logic/facility_process.php" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add_reservation">
+                    
+                    <div class="form-group">
+                        <label for="booking_guest_name">Guest Name <span style="color: #ef4444;">*</span></label>
+                        <input type="text" id="booking_guest_name" name="guest_name" required placeholder="Enter guest full name">
+                    </div>
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
+                    <div class="form-group">
+                        <label for="booking_category">Category <span style="color: #ef4444;">*</span></label>
+                        <select id="booking_category" name="category_id" required>
+                            <option value="">-- Select Category --</option>
+                            <?php foreach ($categoryRows as $category): ?>
+                                <option value="<?php echo $category['category_id']; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-        const facilitySearchInput = document.getElementById('facilitySearchInput');
-        const facilityCards = document.querySelectorAll('.facility-card');
-        facilitySearchInput.addEventListener('keyup', function() {
-            const term = this.value.toLowerCase();
-            facilityCards.forEach(card => {
-                const text = card.textContent.toLowerCase();
-                card.style.display = text.includes(term) ? '' : 'none';
-            });
-        });
+                    <div class="form-group">
+                        <label for="booking_unit">Unit <span style="color: #ef4444;">*</span></label>
+                        <select id="booking_unit" name="facility_id" required disabled>
+                            <option value="">-- First select category and dates --</option>
+                        </select>
+                        <small style="color: rgba(47,61,46,0.6); font-size: 11px;">Only available units for selected dates will appear</small>
+                    </div>
 
-        document.getElementById('addFacilityBtn').addEventListener('click', function() {
-            document.getElementById('facilityForm').reset();
-            document.getElementById('facilityModalTitle').innerText = 'Add Facility';
-            document.getElementById('facilityAction').value = 'add_facility';
-            document.getElementById('facilityId').value = '';
-            document.getElementById('facilitySubmitBtn').innerText = 'Add Facility';
-            openModal('facilityModal');
-        });
+                    <div class="form-group">
+                        <label for="booking_checkin">Check-in Date <span style="color: #ef4444;">*</span></label>
+                        <input type="date" id="booking_checkin" name="check_in_date" required>
+                    </div>
 
-        document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            openModal('logoutConfirmModal');
-        });
-    </script>
+                    <div class="form-group">
+                        <label for="booking_checkout">Check-out Date <span style="color: #ef4444;">*</span></label>
+                        <input type="date" id="booking_checkout" name="check_out_date" required>
+                    </div>
+
+                    <div id="bookingPricePreview" style="background: #FAF8F4; padding: 12px; border-radius: 8px; margin-top: 8px; font-size: 14px; display: none;">
+                        <strong>Total Price:</strong> <span id="pricePreviewAmount">₱ 0</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('reservationModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="reservationSubmitBtn">Create Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Logout Modal -->
     <div id="logoutConfirmModal" class="modal-overlay" style="display: none;">
         <div class="modal" style="max-width: 400px;">
             <div class="modal-header">
@@ -352,5 +358,186 @@ if (!$hasStatus) {
             </div>
         </div>
     </div>
+
+    <script>
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Search functionality
+        const facilitySearchInput = document.getElementById('facilitySearchInput');
+        const facilityCards = document.querySelectorAll('.facility-card');
+        if (facilitySearchInput) {
+            facilitySearchInput.addEventListener('keyup', function() {
+                const term = this.value.toLowerCase();
+                facilityCards.forEach(card => {
+                    const text = card.textContent.toLowerCase();
+                    card.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
+        }
+
+        // Add Facility button
+        document.getElementById('addFacilityBtn').addEventListener('click', function() {
+            document.getElementById('facilityForm').reset();
+            document.getElementById('facilityModalTitle').innerText = 'Add Facility';
+            document.getElementById('facilitySubmitBtn').innerText = 'Add Facility';
+            openModal('facilityModal');
+        });
+
+        // New Booking button
+        document.getElementById('newBookingBtn').addEventListener('click', function() {
+            document.getElementById('reservationForm').reset();
+            document.getElementById('booking_unit').disabled = true;
+            document.getElementById('booking_unit').innerHTML = '<option value="">-- First select category and dates --</option>';
+            document.getElementById('bookingPricePreview').style.display = 'none';
+            openModal('reservationModal');
+        });
+
+        // Dynamic unit loading based on category and dates
+        const bookingCategory = document.getElementById('booking_category');
+        const bookingCheckin = document.getElementById('booking_checkin');
+        const bookingCheckout = document.getElementById('booking_checkout');
+        const bookingUnit = document.getElementById('booking_unit');
+        const pricePreviewSpan = document.getElementById('pricePreviewAmount');
+        const pricePreviewDiv = document.getElementById('bookingPricePreview');
+
+        let currentAvailableUnits = [];
+
+        function loadAvailableUnits() {
+            const categoryId = bookingCategory.value;
+            const checkIn = bookingCheckin.value;
+            const checkOut = bookingCheckout.value;
+
+            if (!categoryId || !checkIn || !checkOut) {
+                bookingUnit.disabled = true;
+                bookingUnit.innerHTML = '<option value="">-- Select category and dates first --</option>';
+                pricePreviewDiv.style.display = 'none';
+                return;
+            }
+
+            // Validate date order
+            if (new Date(checkOut) <= new Date(checkIn)) {
+                bookingUnit.disabled = true;
+                bookingUnit.innerHTML = '<option value="">-- Check-out must be after check-in --</option>';
+                pricePreviewDiv.style.display = 'none';
+                return;
+            }
+
+            // Show loading state
+            bookingUnit.disabled = true;
+            bookingUnit.innerHTML = '<option value="">Loading available units...</option>';
+
+            fetch(`../logic/get_available_units.php?category_id=${encodeURIComponent(categoryId)}&check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentAvailableUnits = data.units;
+                        if (currentAvailableUnits.length === 0) {
+                            bookingUnit.innerHTML = '<option value="">-- No units available for these dates --</option>';
+                            bookingUnit.disabled = true;
+                            pricePreviewDiv.style.display = 'none';
+                        } else {
+                            let options = '<option value="">-- Select a unit --</option>';
+                            currentAvailableUnits.forEach(unit => {
+                                options += `<option value="${unit.id}" data-price="${unit.price}">${escapeHtml(unit.name)} - ₱ ${Number(unit.price).toLocaleString()}/night</option>`;
+                            });
+                            bookingUnit.innerHTML = options;
+                            bookingUnit.disabled = false;
+                        }
+                    } else {
+                        bookingUnit.innerHTML = `<option value="">Error: ${escapeHtml(data.message)}</option>`;
+                        bookingUnit.disabled = true;
+                        pricePreviewDiv.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading units:', error);
+                    bookingUnit.innerHTML = '<option value="">Error loading units. Please try again.</option>';
+                    bookingUnit.disabled = true;
+                    pricePreviewDiv.style.display = 'none';
+                });
+        }
+
+        // Calculate and show price preview when unit is selected
+        function updatePricePreview() {
+            const selectedOption = bookingUnit.options[bookingUnit.selectedIndex];
+            if (bookingUnit.disabled || !bookingUnit.value || !selectedOption || !selectedOption.dataset.price) {
+                pricePreviewDiv.style.display = 'none';
+                return;
+            }
+
+            const pricePerNight = parseFloat(selectedOption.dataset.price);
+            const checkIn = bookingCheckin.value;
+            const checkOut = bookingCheckout.value;
+
+            if (!checkIn || !checkOut) {
+                pricePreviewDiv.style.display = 'none';
+                return;
+            }
+
+            const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+            if (nights <= 0) {
+                pricePreviewDiv.style.display = 'none';
+                return;
+            }
+
+            const total = pricePerNight * nights;
+            pricePreviewSpan.textContent = `₱ ${total.toLocaleString()} (${nights} night${nights !== 1 ? 's' : ''})`;
+            pricePreviewDiv.style.display = 'block';
+        }
+
+        // Helper to escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Event listeners for dynamic loading
+        bookingCategory.addEventListener('change', loadAvailableUnits);
+        bookingCheckin.addEventListener('change', function() {
+            loadAvailableUnits();
+        });
+        bookingCheckout.addEventListener('change', function() {
+            loadAvailableUnits();
+        });
+        bookingUnit.addEventListener('change', updatePricePreview);
+
+        // Form validation before submit
+        document.getElementById('reservationForm').addEventListener('submit', function(e) {
+            const unitSelect = document.getElementById('booking_unit');
+            if (!unitSelect.value) {
+                e.preventDefault();
+                alert('Please select a unit for the booking.');
+                return false;
+            }
+            const checkIn = document.getElementById('booking_checkin').value;
+            const checkOut = document.getElementById('booking_checkout').value;
+            if (new Date(checkOut) <= new Date(checkIn)) {
+                e.preventDefault();
+                alert('Check-out date must be after check-in date.');
+                return false;
+            }
+        });
+
+        // Logout modal trigger (assuming sidebar has logout button)
+        const logoutBtn = document.querySelector('.logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                openModal('logoutConfirmModal');
+            });
+        }
+    </script>
 </body>
 </html>
