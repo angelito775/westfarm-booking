@@ -1,0 +1,406 @@
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --forest:    #1a3a1a;
+      --forest-mid:#2d5a2d;
+      --sage:      #6e8f6e;
+      --cream:     #faf7f0;
+      --warm:      #f0ece0;
+      --gold:      #c8973f;
+      --gold-lt:   #d4a373;
+      --tan:       #e8d5b0;
+      --dark:      #111a11;
+      --text:      #2c2c2c;
+      --muted:     #7a7a6a;
+
+      /* Glass variables */
+      --glass-bg:      rgba(10, 22, 10, 0.45);
+      --glass-border:  rgba(255, 255, 255, 0.12);
+      --glass-input:   rgba(255, 255, 255, 0.10);
+      --glass-input-focus: rgba(255, 255, 255, 0.18);
+      --glass-text:    rgba(255, 255, 255, 0.92);
+      --glass-muted:   rgba(255, 255, 255, 0.50);
+      --glass-label:   rgba(200, 230, 200, 0.75);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Lora', serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* ── BACKGROUND VIDEO ── */
+    #bg-video {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .video-overlay {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(10,20,10,0.65) 0%,
+        rgba(10,20,10,0.35) 50%,
+        rgba(10,20,10,0.70) 100%
+      );
+      z-index: 1;
+    }
+
+    /* ── CARD WRAP ── */
+    .login-wrap {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 420px;
+      padding: 1rem;
+    }
+
+    /* ── GLASS CARD ── */
+    .login-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      border-top: 3px solid var(--gold);
+      box-shadow:
+        0 8px 32px rgba(0,0,0,0.45),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* ── HEADER ── */
+    .card-header {
+      padding: 2rem 2rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    /* ── IMAGE LOGO ── */
+    .logo-img {
+      width: 54px;
+      height: 54px;
+      border-radius: 4px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .logo-text-col {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+      text-align: left;
+    }
+
+    .logo-name {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #fff;
+    }
+
+    .logo-sub {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.52rem;
+      font-weight: 300;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--glass-muted);
+    }
+
+    .header-divider {
+      width: 40px;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.7;
+    }
+
+    .header-tag {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.52rem;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--glass-muted);
+    }
+
+    /* ── CARD BODY ── */
+    .card-body {
+      padding: 2rem 2rem 2.4rem;
+    }
+
+    .card-title {
+      margin-bottom: 1.6rem;
+    }
+
+    .card-title h1 {
+      font-family: 'Dancing Script', cursive;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    .card-title .eyebrow {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.57rem;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--glass-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .eyebrow::before {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--gold);
+    }
+
+    /* ── FORM FIELDS ── */
+    .field { margin-bottom: 1rem; }
+
+    .field label {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.57rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--glass-label);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap .icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(110,143,110,0.8);
+      font-size: 0.82rem;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      background: var(--glass-input);
+      border: 1px solid var(--glass-border);
+      border-radius: 2px;
+      padding: 11px 14px 11px 38px;
+      font-family: 'Lora', serif;
+      font-size: 0.88rem;
+      color: var(--glass-text);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--gold);
+      background: var(--glass-input-focus);
+    }
+
+    .input-wrap input::placeholder {
+      color: rgba(255,255,255,0.28);
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(110,143,110,0.8);
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 2px;
+    }
+
+    /* ── REMEMBER / FORGOT ── */
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 1px;
+      color: var(--glass-muted);
+    }
+
+    .remember input[type="checkbox"] {
+      accent-color: var(--gold);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+    }
+
+    .forgot-link {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 1px;
+      color: var(--gold-lt);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .forgot-link:hover { color: #fff; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      width: 100%;
+      background: rgba(26, 58, 26, 0.75);
+      color: #fff;
+      border: 1px solid rgba(200,151,63,0.4);
+      border-radius: 2px;
+      padding: 13px;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, border-color 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-primary:hover {
+      background: rgba(45, 90, 45, 0.85);
+      border-color: var(--gold);
+    }
+
+    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 1.2rem 0;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--glass-border);
+    }
+
+    .divider span {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 2px;
+      color: var(--glass-muted);
+      text-transform: uppercase;
+    }
+
+    .btn-outline {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.85);
+      border: 1px solid var(--glass-border);
+      border-radius: 2px;
+      padding: 11px;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, border-color 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(200,151,63,0.5);
+    }
+
+    .btn-outline .g-icon { color: var(--gold-lt); }
+
+    /* ── FOOTER TEXT ── */
+    .signup-text {
+      text-align: center;
+      margin-top: 1.3rem;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      color: var(--glass-muted);
+    }
+
+    .signup-text a {
+      color: var(--gold-lt);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .signup-text a:hover { color: #fff; }
+
+    .copyright {
+      text-align: center;
+      margin-top: 1.2rem;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.5rem;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.28);
+      text-transform: uppercase;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .fa-spin { animation: spin 0.8s linear infinite; }
+  
