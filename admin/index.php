@@ -21,6 +21,8 @@ $total_owners = $pdo->query("SELECT COUNT(*) AS count FROM users WHERE user_type
 $total_facilities = $pdo->query("SELECT COUNT(*) AS count FROM facilities")->fetch()['count'] ?? 0;
 $total_bookings = $pdo->query("SELECT COUNT(*) AS count FROM bookings")->fetch()['count'] ?? 0;
 $total_revenue = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) AS total_revenue FROM bookings")->fetch()['total_revenue'] ?? 0;
+$total_categories = $pdo->query("SELECT COUNT(*) AS count FROM categories")->fetch()['count'] ?? 0;
+$total_payment_methods = $pdo->query("SELECT COUNT(*) AS count FROM payment_methods")->fetch()['count'] ?? 0;
 
 $confirmed_bookings = $pdo->query("SELECT COUNT(*) AS count FROM bookings WHERE booking_status_id = 2")->fetch()['count'] ?? 0;
 $pending_bookings = $pdo->query("SELECT COUNT(*) AS count FROM bookings WHERE booking_status_id = 1")->fetch()['count'] ?? 0;
@@ -101,7 +103,7 @@ $today = date('l, F j, Y');
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <a href="../logic/logout.php" class="logout-btn">
+                <a href="#" class="logout-btn" id="openLogoutModalBtn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Sign Out</span>
                 </a>
@@ -159,9 +161,9 @@ $today = date('l, F j, Y');
                         </div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-title">Total Customers</div>
+                        <div class="kpi-title">Total Users</div>
                         <div class="kpi-value">
-                            <span><?php echo $total_customers; ?></span>
+                            <span><?php echo $total_users; ?></span>
                             <div class="kpi-trend positive">
                                 <i class="fas fa-arrow-up"></i>
                                 <span>4.2%</span>
@@ -169,9 +171,9 @@ $today = date('l, F j, Y');
                         </div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-title">Total Facilities</div>
+                        <div class="kpi-title">Total Categories</div>
                         <div class="kpi-value">
-                            <span><?php echo $total_facilities; ?></span>
+                            <span><?php echo $total_categories; ?></span>
                             <div class="kpi-trend positive">
                                 <i class="fas fa-arrow-up"></i>
                                 <span>5.7%</span>
@@ -208,12 +210,12 @@ $today = date('l, F j, Y');
                         </div>
                     </div>
                     <div class="status-mini-card">
-                        <div class="status-icon cancelled">
-                            <i class="fas fa-times-circle"></i>
+                        <div class="status-icon" style="background: #f3e8ff; color: #9333ea;">
+                            <i class="fas fa-money-check-alt"></i>
                         </div>
                         <div class="status-content">
-                            <p>Owners</p>
-                            <p><?php echo $total_owners; ?></p>
+                            <p>Payment Methods</p>
+                            <p><?php echo $total_payment_methods; ?></p>
                         </div>
                     </div>
                 </div>
@@ -302,6 +304,22 @@ $today = date('l, F j, Y');
             </div>
         </div>
     </div>
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutConfirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Sign Out</h3>
+                <button class="modal-close" onclick="closeModal('logoutConfirmModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to sign out of your account?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('logoutConfirmModal')">Stay</button>
+                <a href="../logic/logout.php" class="btn-danger">Sign Out</a>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script>
         const revenueCtx = document.getElementById('revenueChart').getContext('2d');
@@ -366,6 +384,25 @@ $today = date('l, F j, Y');
                     }
                 }
             }
+        });
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeModal(event.target.id);
+            }
+        }
+
+        // Logout confirmation
+        document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            openModal('logoutConfirmModal');
         });
     </script>
 </body>

@@ -1,5 +1,5 @@
 <?php
-session_start();
+session_start(); // Start the session at the very beginning
 // Make sure this points to your config folder from inside the logic folder
 require_once '../config/db_connection.php';
 

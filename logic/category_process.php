@@ -1,5 +1,5 @@
 <?php
-session_start();
+session_start(); // Start the session at the very beginning
 require_once '../config/db_connection.php';
 
 // Security: Kick out anyone who isn't an Admin

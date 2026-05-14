@@ -74,7 +74,7 @@ $methods = $stmt->fetchAll();
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <a href="../logic/logout.php" class="logout-btn">
+                <a href="#" class="logout-btn" id="openLogoutModalBtn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Sign Out</span>
                 </a>
@@ -177,6 +177,23 @@ $methods = $stmt->fetchAll();
 
             <div class="dashboard-footer">
                 © 2026 West Farm Resort and Hotel
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutConfirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Sign Out</h3>
+                <button class="modal-close" onclick="closeModal('logoutConfirmModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to sign out of your account?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('logoutConfirmModal')">Stay</button>
+                <a href="../logic/logout.php" class="btn-danger">Sign Out</a>
             </div>
         </div>
     </div>
