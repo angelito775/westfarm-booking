@@ -16,12 +16,6 @@ $category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 $check_in = $_GET['check_in'] ?? '';
 $check_out = $_GET['check_out'] ?? '';
 
-// Validate inputs
-if ($category_id <= 0) {
-    echo json_encode(['success' => false, 'message' => 'Invalid category selected']);
-    exit();
-}
-
 if (empty($check_in) || empty($check_out)) {
     echo json_encode(['success' => false, 'message' => 'Please select both check-in and check-out dates']);
     exit();
@@ -38,6 +32,12 @@ if ($check_in_ts === false || $check_out_ts === false || $check_out_ts <= $check
 try {
     // Get columns from facilities table to determine status column name
     $columns = $pdo->query("SHOW COLUMNS FROM facilities")->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Determine price column
+    $priceColumn = 'price';
+    if (in_array('base_price', $columns) && !in_array('price', $columns)) {
+        $priceColumn = 'base_price';
+    }
     
     // Determine status column
     $statusColumn = 'status';
@@ -57,10 +57,18 @@ try {
     // 2. It is marked as open/active
     // 3. There is NO overlapping booking (existing booking that overlaps with requested date range)
     
-    $sql = "SELECT f.facility_id, f.name, f.price 
+    $params = [
+        'check_in' => $check_in,
+        'check_out' => $check_out
+    ];
+    $sql = "SELECT f.facility_id, f.name, f.{$priceColumn} AS price 
             FROM facilities f 
-            WHERE f.category_id = :category_id";
+            WHERE 1=1";
     
+    if ($category_id > 0) {
+        $sql .= " AND f.category_id = :category_id";
+        $params['category_id'] = $category_id;
+    }
     // Add status condition if status column exists
     if ($statusColumn === 'status') {
         $sql .= " AND f.status IN ('active', 'open', 'available')";
@@ -75,19 +83,15 @@ try {
         SELECT 1 FROM booking_items bi 
         JOIN bookings b ON bi.booking_id = b.booking_id 
         WHERE bi.facility_id = f.facility_id 
-        AND b.check_in_date <= :check_out 
-        AND b.check_out_date >= :check_in
-        AND b.status NOT IN ('cancelled', 'refunded')
+        AND bi.check_in_date < :check_out 
+        AND bi.check_out_date > :check_in
+        AND b.booking_status_id NOT IN (SELECT booking_status_id FROM booking_statuses WHERE status_name IN ('Cancelled', 'Refunded'))
     )";
     
     $sql .= " ORDER BY f.name ASC";
     
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        'category_id' => $category_id,
-        'check_in' => $check_in,
-        'check_out' => $check_out
-    ]);
+    $stmt->execute($params);
     
     $units = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
