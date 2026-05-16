@@ -291,6 +291,12 @@ $methods = $stmt->fetchAll();
         document.querySelectorAll('.alert-close').forEach(button => {
             button.addEventListener('click', function() { this.parentElement.style.display = 'none'; });
         });
+
+        // Logout confirmation
+        document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            openModal('logoutConfirmModal');
+        });
     </script>
 </body>
 </html>
