@@ -43,6 +43,9 @@ session_start();
                             if ($_GET['error'] == 'empty_fields') echo "Please fill in all required fields.";
                             elseif ($_GET['error'] == 'password_mismatch') echo "Your passwords do not match.";
                             elseif ($_GET['error'] == 'email_taken') echo "This email is already registered.";
+                            elseif ($_GET['error'] == 'phone_taken') echo "This phone number is already in use.";
+                            elseif ($_GET['error'] == 'email_phone_taken') echo "Both email and phone number are already in use.";
+                            elseif ($_GET['error'] == 'email_phone_and_password_mismatch') echo "Both email and phone number are already in use and password didn't match.";
                             elseif ($_GET['error'] == 'system_error') echo "A system error occurred. Please try again later.";
                         ?>
                     </div>
@@ -55,14 +58,14 @@ session_start();
                             <label for="first_name">First Name</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-user"></i></span>
-                                <input type="text" id="first_name" name="first_name" placeholder="Juan" required>
+                                <input type="text" id="first_name" name="first_name" placeholder="Juan" value="<?php echo isset($_GET['first_name']) ? htmlspecialchars($_GET['first_name']) : ''; ?>" required>
                             </div>
                         </div>
                         <div class="field">
                             <label for="last_name">Last Name</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-user"></i></span>
-                                <input type="text" id="last_name" name="last_name" placeholder="Dela Cruz" required>
+                                <input type="text" id="last_name" name="last_name" placeholder="Dela Cruz" value="<?php echo isset($_GET['last_name']) ? htmlspecialchars($_GET['last_name']) : ''; ?>" required>
                             </div>
                         </div>
                     </div>
@@ -72,14 +75,14 @@ session_start();
                             <label for="phone_number">Phone Number</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-phone"></i></span>
-                                <input type="text" id="phone_number" name="phone_number" placeholder="09123456789" required>
+                                <input type="text" id="phone_number" name="phone_number" placeholder="09123456789" value="<?php echo isset($_GET['phone_number']) ? htmlspecialchars($_GET['phone_number']) : ''; ?>" required>
                             </div>
                         </div>
                         <div class="field">
                             <label for="email">Email Address</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-envelope"></i></span>
-                                <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                                <input type="email" id="email" name="email" placeholder="you@example.com" value="<?php echo isset($_GET['email']) ? htmlspecialchars($_GET['email']) : ''; ?>" required>
                             </div>
                         </div>
                     </div>
@@ -89,14 +92,16 @@ session_start();
                             <label for="password">Password</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-lock"></i></span>
-                                <input type="password" id="password" name="password" placeholder="••••••••" required minlength="6">
+                                <input type="password" id="password" name="password" placeholder="••••••••" value="<?php echo isset($_GET['password']) ? htmlspecialchars($_GET['password']) : ''; ?>" required minlength="6">
                             </div>
                         </div>
                         <div class="field">
                             <label for="confirm_password">Confirm Password</label>
                             <div class="input-wrap">
                                 <span class="icon"><i class="fas fa-lock"></i></span>
-                                <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required minlength="6">
+                                <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••"
+                                    value="<?php echo isset($_GET['confirm_password']) ? htmlspecialchars($_GET['confirm_password']) : ''; ?>"
+                                    required minlength="6">
                             </div>
                         </div>
                     </div>

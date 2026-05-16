@@ -44,13 +44,14 @@ session_start();
             <div style="color: #dc2626; background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 10px; margin-bottom: 20px; font-size: 14px; border-radius: 4px;">
                 <?php 
                     if ($_GET['error'] == 'empty_fields') echo "Please fill in all fields.";
-                    elseif ($_GET['error'] == 'invalid_credentials') echo "Incorrect email or password.";
+                    elseif ($_GET['error'] == 'invalid_email') echo "Email not found. Please check and try again.";
+                    elseif ($_GET['error'] == 'invalid_password') echo "Incorrect password.";
                     elseif ($_GET['error'] == 'account_disabled') echo "Your account has been disabled or suspended.";
                     elseif ($_GET['error'] == 'system_error') echo "A system error occurred. Please try again.";
                 ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if (isset($_GET['success']) && $_GET['success'] == 'registered'): ?>
             <div style="color: #15803d; background-color: #dcfce7; border-left: 4px solid #16a34a; padding: 10px; margin-bottom: 20px; font-size: 14px; border-radius: 4px;">
                 Registration successful! You can now sign in.
@@ -63,7 +64,7 @@ session_start();
               <label for="email">Email Address</label>
               <div class="input-wrap">
                 <span class="icon"><i class="fas fa-envelope"></i></span>
-                <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+                <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" value="<?php echo isset($_GET['email']) ? htmlspecialchars($_GET['email']) : ''; ?>" required>
               </div>
             </div>
 
@@ -124,6 +125,23 @@ session_start();
           pwIcon.classList.add('fa-eye');
       }
   }
+
+  // Clear fields based on error type
+  window.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const passwordInput = document.getElementById('password');
+    const emailInput = document.getElementById('email');
+
+    if (error === 'invalid_email') {
+      // Email was wrong - clear both fields
+      emailInput.value = '';
+      passwordInput.value = '';
+    } else if (error === 'invalid_password') {
+      // Password was wrong - keep email, clear only password
+      passwordInput.value = '';
+    }
+  });
 </script>
 </body>
 </html>

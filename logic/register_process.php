@@ -16,24 +16,69 @@ if (isset($_POST['register_btn'])) {
     // The path to redirect back to if there is an error
     $register_page = "../pages/register.php";
 
-    // 1. Basic Validation
+    // Basic validation
     if (empty($first_name) || empty($last_name) || empty($email) || empty($password)) {
         header("Location: {$register_page}?error=empty_fields");
         exit();
     }
 
-    if ($password !== $confirm_password) {
-        header("Location: {$register_page}?error=password_mismatch");
-        exit();
-    }
+    $passwordMismatch = $password !== $confirm_password;
 
     try {
-        // 2. Check if email already exists
+        // check email
         $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = :email");
         $stmt->execute(['email' => $email]);
-        
-        if ($stmt->fetch()) {
-            header("Location: {$register_page}?error=email_taken");
+        $emailTaken = (bool) $stmt->fetch();
+
+        // check phone
+        $stmt = $pdo->prepare("SELECT user_id FROM user_profiles WHERE phone_number = :phone");
+        $stmt->execute(['phone' => $phone_number]);
+        $phoneTaken = (bool) $stmt->fetch();
+
+        if ($emailTaken && $phoneTaken && $passwordMismatch) {
+            header("Location: {$register_page}?error=email_phone_and_password_mismatch"
+                . "&first_name=" . urlencode($first_name)
+                . "&last_name=" . urlencode($last_name)
+                . "&password=" . urlencode($password));
+            exit();
+        }
+
+        if ($emailTaken && $phoneTaken) {
+            header("Location: {$register_page}?error=email_phone_taken"
+                . "&first_name=" . urlencode($first_name)
+                . "&last_name=" . urlencode($last_name)
+                . "&password=" . urlencode($password)
+                . "&confirm_password=" . urlencode($confirm_password));
+            exit();
+        }
+
+        if ($emailTaken) {
+            header("Location: {$register_page}?error=email_taken"
+                . "&first_name=" . urlencode($first_name)
+                . "&last_name=" . urlencode($last_name)
+                . "&phone_number=" . urlencode($phone_number)
+                . "&password=" . urlencode($password)
+                . "&confirm_password=" . urlencode($confirm_password));
+            exit();
+        }
+
+        if ($phoneTaken) {
+            header("Location: {$register_page}?error=phone_taken"
+                . "&first_name=" . urlencode($first_name)
+                . "&last_name=" . urlencode($last_name)
+                . "&email=" . urlencode($email)
+                . "&password=" . urlencode($password)
+                . "&confirm_password=" . urlencode($confirm_password));
+            exit();
+        }
+
+        if ($passwordMismatch) {
+            header("Location: {$register_page}?error=password_mismatch"
+                . "&first_name=" . urlencode($first_name)
+                . "&last_name=" . urlencode($last_name)
+                . "&phone_number=" . urlencode($phone_number)
+                . "&email=" . urlencode($email)
+                . "&password=" . urlencode($password));
             exit();
         }
 

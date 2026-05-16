@@ -394,11 +394,11 @@ if (!$statusColumn) {
                     <div class="form-grid">
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Check-in Date <span style="color:red;">*</span></label>
-                            <input type="date" id="booking_checkin" name="check_in_date" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <input type="date" id="booking_checkin" name="check_in_date" required min="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                         </div>
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Check-out Date <span style="color:red;">*</span></label>
-                            <input type="date" id="booking_checkout" name="check_out_date" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <input type="date" id="booking_checkout" name="check_out_date" required min="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                         </div>
                     </div>
                     
@@ -562,7 +562,12 @@ if (!$statusColumn) {
             openModal('reservationModal');
         });
 
-        // Dynamic Unit Fetcher for Booking Modal
+        // ========== BOOKING MODAL LOGIC ==========
+        // Define category restrictions at the top level
+        const singleDayCategories = ['Cottage', 'Pool', 'Event Hall'];
+        const allDayCategories = ['Cottage', 'Pool', 'Event Hall', 'Private Villa', 'Glamping'];
+
+        // Get references to booking form elements
         const checkinInput = document.getElementById('booking_checkin');
         const checkoutInput = document.getElementById('booking_checkout');
         const categoryInput = document.getElementById('booking_category');
@@ -570,40 +575,89 @@ if (!$statusColumn) {
         const priceDiv = document.getElementById('bookingPricePreview');
         const priceAmount = document.getElementById('pricePreviewAmount');
 
-        function fetchAvailableUnits() {
-            const cin = checkinInput.value;
-            const cout = checkoutInput.value;
-            const cat = categoryInput.value;
+        const today = new Date().toISOString().split('T')[0];
 
-            if (!cin || !cout) return;
-            if (new Date(cout) <= new Date(cin)) {
-                unitSelect.innerHTML = '<option value="">-- Invalid Dates --</option>';
-                unitSelect.disabled = true;
+        function resetBookingDateLimits() {
+            checkinInput.min = today;
+            checkoutInput.min = today;
+        }
+
+        document.getElementById('newBookingBtn').addEventListener('click', function() {
+            resetBookingDateLimits();
+            checkinInput.value = '';
+            checkoutInput.value = '';
+            unitSelect.disabled = true;
+            unitSelect.innerHTML = '<option value="">-- Set dates first --</option>';
+            priceDiv.style.display = 'none';
+            openModal('reservationModal');
+        });
+
+        checkinInput.addEventListener('change', function() {
+            checkoutInput.min = this.value || today;
+            if (checkoutInput.value && checkoutInput.value < checkoutInput.min) {
+                checkoutInput.value = '';
+            }
+            fetchAvailableUnits();
+        });
+
+        function fetchAvailableUnits() {
+            const categoryId = categoryInput.value;
+            const checkIn = checkinInput.value;
+            const checkOut = checkoutInput.value;
+
+            // Determine if same-day booking
+            const isSameDay = checkIn === checkOut && checkIn !== '';
+
+            // Get the selected category name from the dropdown
+            const categoryOption = categoryInput.options[categoryInput.selectedIndex];
+            const selectedCategoryName = categoryOption ? categoryOption.text : '';
+
+            // Validate category availability based on dates
+            if (categoryId) {
+                if (isSameDay && !singleDayCategories.includes(selectedCategoryName)) {
+                    unitSelect.innerHTML = '<option value="">⚠️ ' + selectedCategoryName + ' requires multiple nights</option>';
+                    unitSelect.disabled = true;
+                    priceDiv.style.display = 'none';
+                    return;
+                }
+            }
+
+            // Disable unit select if no category selected
+            unitSelect.disabled = !categoryId;
+
+            // Clear units if category not selected
+            if (!categoryId) {
+                unitSelect.innerHTML = '<option value="">-- First select a category --</option>';
                 priceDiv.style.display = 'none';
                 return;
             }
 
-            unitSelect.disabled = true;
-            unitSelect.innerHTML = '<option value="">Loading available units...</option>';
+            // Both dates required to fetch units
+            if (!checkIn || !checkOut) {
+                unitSelect.innerHTML = '<option value="">-- Select both dates first --</option>';
+                priceDiv.style.display = 'none';
+                return;
+            }
 
-            // Call to the backend script to fetch free units
-            fetch(`../logic/get_available_units.php?check_in=${cin}&check_out=${cout}&category_id=${cat}`)
-                .then(res => res.json())
+            fetch(`../logic/get_available_units.php?category_id=${categoryId}&check_in=${checkIn}&check_out=${checkOut}`)
+                .then(r => r.json())
                 .then(data => {
-                    if (data.success && data.units.length > 0) {
-                        let html = '<option value="">-- Select a Unit --</option>';
-                        data.units.forEach(u => {
-                            html += `<option value="${u.id}" data-price="${u.price}">${u.name} (₱${Number(u.price).toLocaleString()}/night)</option>`;
+                    if (data.success) {
+                        unitSelect.innerHTML = '<option value="">-- Select Unit --</option>';
+                        data.units.forEach(unit => {
+                            const opt = document.createElement('option');
+                            opt.value = unit.id;
+                            opt.textContent = `${unit.name} (₱${unit.price})`;
+                            opt.dataset.price = unit.price;
+                            unitSelect.appendChild(opt);
                         });
-                        unitSelect.innerHTML = html;
-                        unitSelect.disabled = false;
                     } else {
-                        unitSelect.innerHTML = '<option value="">-- No units available --</option>';
-                        priceDiv.style.display = 'none';
+                        unitSelect.innerHTML = `<option value="">No units available: ${data.message}</option>`;
                     }
                 })
-                .catch(() => {
-                    unitSelect.innerHTML = '<option value="">-- Error fetching units --</option>';
+                .catch(err => {
+                    unitSelect.innerHTML = '<option value="">Error loading units</option>';
+                    console.error(err);
                 });
         }
 
@@ -614,7 +668,13 @@ if (!$statusColumn) {
                 return;
             }
             const price = parseFloat(option.dataset.price);
-            const nights = Math.ceil((new Date(checkoutInput.value) - new Date(checkinInput.value)) / (1000 * 60 * 60 * 24));
+            const checkInDate = new Date(checkinInput.value);
+            const checkOutDate = new Date(checkoutInput.value);
+            
+            // For same-day bookings, count as 1 night
+            const nights = checkInDate.toDateString() === checkOutDate.toDateString() 
+                ? 1 
+                : Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
             
             if (nights > 0) {
                 priceAmount.textContent = `₱ ${(price * nights).toLocaleString()}`;
@@ -622,9 +682,18 @@ if (!$statusColumn) {
             }
         }
 
+        // Event listeners
         checkinInput.addEventListener('change', fetchAvailableUnits);
         checkoutInput.addEventListener('change', fetchAvailableUnits);
-        categoryInput.addEventListener('change', fetchAvailableUnits);
+        
+        // When category changes, reset unit selection
+        categoryInput.addEventListener('change', function() {
+            unitSelect.value = '';  // Reset unit selection
+            unitSelect.innerHTML = '<option value="">-- Loading units... --</option>';
+            priceDiv.style.display = 'none';
+            fetchAvailableUnits();
+        });
+        
         unitSelect.addEventListener('change', calculatePrice);
 
         // Image Preview Handler
@@ -645,7 +714,7 @@ if (!$statusColumn) {
         // Facility Card Image Preview Modal
         document.querySelectorAll('.facility-image-previewable').forEach(image => {
             image.addEventListener('click', function(e) {
-                e.stopPropagation(); // Prevent other clicks if needed
+                e.stopPropagation();
                 document.getElementById('previewModalImage').src = this.src;
                 openModal('imagePreviewModal');
             });

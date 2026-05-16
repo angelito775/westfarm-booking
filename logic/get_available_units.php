@@ -24,8 +24,32 @@ if (empty($check_in) || empty($check_out)) {
 // Validate date order
 $check_in_ts = strtotime($check_in);
 $check_out_ts = strtotime($check_out);
-if ($check_in_ts === false || $check_out_ts === false || $check_out_ts <= $check_in_ts) {
+if ($check_in_ts === false || $check_out_ts === false || $check_out_ts < $check_in_ts) {
     echo json_encode(['success' => false, 'message' => 'Check-out date must be after check-in date']);
+    exit();
+}
+
+// Validate category restrictions for same-day bookings
+if ($check_in === $check_out) {
+    // Same-day bookings only allowed for specific categories
+    $allowedSameDayCategories = ['Cottage', 'Pool', 'Event Hall'];
+    
+    $stmt = $pdo->prepare("SELECT name FROM categories WHERE category_id = :id");
+    $stmt->execute(['id' => $category_id]);
+    $catResult = $stmt->fetch();
+    
+    if ($catResult && !in_array($catResult['name'], $allowedSameDayCategories)) {
+        echo json_encode([
+            'success' => false,
+            'message' => $catResult['name'] . ' requires multiple nights (check-in and check-out dates must be different)'
+        ]);
+        exit();
+    }
+}
+
+// Make sure category_id is provided and valid
+if ($category_id <= 0) {
+    echo json_encode(['success' => false, 'message' => 'Please select a category']);
     exit();
 }
 
@@ -58,17 +82,14 @@ try {
     // 3. There is NO overlapping booking (existing booking that overlaps with requested date range)
     
     $params = [
+        'category_id' => $category_id,
         'check_in' => $check_in,
         'check_out' => $check_out
     ];
     $sql = "SELECT f.facility_id, f.name, f.{$priceColumn} AS price 
             FROM facilities f 
-            WHERE 1=1";
+            WHERE f.category_id = :category_id";  // THIS IS KEY - must filter by category
     
-    if ($category_id > 0) {
-        $sql .= " AND f.category_id = :category_id";
-        $params['category_id'] = $category_id;
-    }
     // Add status condition if status column exists
     if ($statusColumn === 'status') {
         $sql .= " AND f.status IN ('active', 'open', 'available')";
