@@ -21,26 +21,33 @@ $payments = [];
 $totalRevenue = 0;
 $paymentMethodsSummary = [];
 $paymentStatusSummary = [];
+$monthlyRevenue = [];
 
 try {
+    // Main payments query — join through bookings → booking_items → facilities to get facility name
     $paymentsStmt = $pdo->prepare(
-        "SELECT p.payment_id, p.booking_id, p.amount_paid, p.transaction_id, p.payment_date,
-                pm.method_name, ps.status_name, up.first_name, up.last_name
+        "SELECT p.payment_id, p.booking_id, p.amount_paid, p.transaction_id,
+                COALESCE(p.payment_date, b.created_at) AS payment_date,
+                pm.method_name, ps.status_name,
+                up.first_name, up.last_name,
+                f.name AS facility_name
          FROM payments p
          JOIN bookings b ON p.booking_id = b.booking_id
          JOIN booking_items bi ON b.booking_id = bi.booking_id
+         JOIN facilities f ON bi.facility_id = f.facility_id
          JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
          JOIN payment_statuses ps ON b.payment_status_id = ps.payment_status_id
          LEFT JOIN users u ON b.customer_id = u.user_id
          LEFT JOIN user_profiles up ON u.user_id = up.user_id
          WHERE bi.facility_id IN ($placeholders)
          GROUP BY p.payment_id
-         ORDER BY p.payment_date DESC"
+         ORDER BY COALESCE(p.payment_date, b.created_at) DESC"
     );
     $paymentsStmt->execute($facilityIds);
     $payments = $paymentsStmt->fetchAll();
     $hasLedgerData = true;
 
+    // Total revenue
     $totalRevenueStmt = $pdo->prepare(
         "SELECT COALESCE(SUM(amount_paid), 0) AS total_revenue
          FROM (
@@ -55,6 +62,7 @@ try {
     $totalRevenueStmt->execute($facilityIds);
     $totalRevenue = $totalRevenueStmt->fetch()['total_revenue'] ?? 0;
 
+    // Payment methods summary
     $methodSummaryStmt = $pdo->prepare(
         "SELECT pm.method_name, COUNT(*) AS count
          FROM (
@@ -71,6 +79,7 @@ try {
     $methodSummaryStmt->execute($facilityIds);
     $paymentMethodsSummary = $methodSummaryStmt->fetchAll();
 
+    // Payment statuses summary
     $statusSummaryStmt = $pdo->prepare(
         "SELECT ps.status_name, COUNT(*) AS count
          FROM (
@@ -86,6 +95,31 @@ try {
     );
     $statusSummaryStmt->execute($facilityIds);
     $paymentStatusSummary = $statusSummaryStmt->fetchAll();
+
+    // Monthly revenue (last 6 months)
+    for ($i = 5; $i >= 0; $i--) {
+        $month = date('Y-m', strtotime("-$i months"));
+        $monthLabel = date('M Y', strtotime("-$i months"));
+        $monthlyStmt = $pdo->prepare(
+            "SELECT COALESCE(SUM(p.amount_paid), 0) AS revenue
+             FROM payments p
+             JOIN bookings b ON p.booking_id = b.booking_id
+             JOIN booking_items bi ON b.booking_id = bi.booking_id
+             WHERE DATE_FORMAT(COALESCE(p.payment_date, b.created_at), '%Y-%m') = ?
+             AND bi.facility_id IN ($placeholders)
+             GROUP BY bi.facility_id"
+        );
+        $monthlyStmt->execute(array_merge([$month], $facilityIds));
+        $rows = $monthlyStmt->fetchAll();
+        $sum = 0;
+        foreach ($rows as $row) {
+            $sum += $row['revenue'];
+        }
+        $monthlyRevenue[] = [
+            'label' => $monthLabel,
+            'revenue' => $sum
+        ];
+    }
 } catch (Exception $e) {
     $hasLedgerData = false;
 }
@@ -114,6 +148,10 @@ try {
                     </div>
                 </div>
                 <div class="topbar-right">
+                    <div class="role-switcher">
+                        <button class="role-btn active">Owner</button>
+                        <button class="role-btn" onclick="goToAdmin()">Admin</button>
+                    </div>
                     <button class="notification-btn"><i class="fas fa-bell"></i><span class="notification-dot"></span></button>
                     <div class="user-section">
                         <div class="user-info">
@@ -128,7 +166,7 @@ try {
                 <div class="section-card">
                     <div class="section-header">
                         <h3 class="section-title">Income & Ledger</h3>
-                        <button class="section-action" onclick="alert('Ledger report refresh will be added later');">Refresh</button>
+                        <button class="section-action" onclick="window.print();"><i class="fas fa-print"></i> Print</button>
                     </div>
                     <div class="section-body">
                         <?php if (!$hasLedgerData): ?>
@@ -137,6 +175,7 @@ try {
                                 <p>Make sure payments, bookings, and booking items are configured in the database.</p>
                             </div>
                         <?php else: ?>
+                            <!-- Summary Cards -->
                             <div class="grid-2-3" style="gap: 16px; margin-bottom: 24px;">
                                 <div class="status-mini-card">
                                     <div class="status-icon confirmed"><i class="fas fa-money-bill-wave"></i></div>
@@ -148,6 +187,7 @@ try {
                                 </div>
                             </div>
 
+                            <!-- Payment Method & Status Summaries -->
                             <?php if (!empty($paymentMethodsSummary) || !empty($paymentStatusSummary)): ?>
                                 <div class="grid-2-3" style="gap: 16px; margin-bottom: 24px;">
                                     <?php foreach ($paymentMethodsSummary as $methodRow): ?>
@@ -165,30 +205,58 @@ try {
                                 </div>
                             <?php endif; ?>
 
+                            <!-- Monthly Revenue Breakdown -->
+                            <div class="section-header" style="margin-bottom: 12px;">
+                                <h3 class="section-title" style="font-size: 14px;">Monthly Revenue (Last 6 Months)</h3>
+                            </div>
+                            <div class="grid-2-3" style="gap: 12px; margin-bottom: 24px; grid-template-columns: repeat(6, 1fr);">
+                                <?php foreach ($monthlyRevenue as $month): ?>
+                                    <div class="status-mini-card" style="flex-direction: column; align-items: center; text-align: center; padding: 12px 8px;">
+                                        <div class="status-content" style="text-align: center;">
+                                            <p style="font-size: 11px; color: rgba(47,61,46,0.6); margin: 0;"><?php echo $month['label']; ?></p>
+                                            <p style="font-size: 16px; font-weight: 700; color: #2F3D2E; margin: 4px 0 0;">₱ <?php echo number_format($month['revenue'], 0); ?></p>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <!-- Ledger Table -->
                             <div class="table-wrapper">
                                 <table>
                                     <thead>
                                         <tr>
                                             <th>Date</th>
                                             <th>Customer</th>
+                                            <th>Facility</th>
                                             <th>Booking Ref</th>
                                             <th>Method</th>
+                                            <th>Transaction ID</th>
                                             <th>Amount</th>
-                                            <th>Status</th>
+                                            <th style="text-align: right;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody id="paymentTableBody">
                                         <?php if (empty($payments)): ?>
-                                            <tr><td colspan="6" style="text-align:center; color: rgba(47, 61, 46, 0.6); padding: 32px 0;">No ledger entries were found for your facility bookings.</td></tr>
+                                            <tr><td colspan="8" style="text-align:center; color: rgba(47, 61, 46, 0.6); padding: 32px 0;">No ledger entries were found for your facility bookings.</td></tr>
                                         <?php else: ?>
                                             <?php foreach ($payments as $payment): ?>
                                                 <tr>
-                                                    <td style="font-size: 13px; color: rgba(47, 61, 46, 0.7);"><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
-                                                    <td style="font-weight: 500; color: #2F3D2E;"><?php echo htmlspecialchars(trim(($payment['first_name'] ?? '') . ' ' . ($payment['last_name'] ?? ''))) ?: 'Guest'; ?></td>
+                                                    <td style="font-size: 13px; color: rgba(47, 61, 46, 0.7);">
+                                                        <?php echo $payment['payment_date'] ? date('M d, Y', strtotime($payment['payment_date'])) : '—'; ?>
+                                                    </td>
+                                                    <td style="font-weight: 500; color: #2F3D2E;">
+                                                        <?php echo htmlspecialchars(trim(($payment['first_name'] ?? '') . ' ' . ($payment['last_name'] ?? ''))) ?: 'Guest'; ?>
+                                                    </td>
+                                                    <td style="color: rgba(47, 61, 46, 0.8);">
+                                                        <?php echo htmlspecialchars($payment['facility_name'] ?? '—'); ?>
+                                                    </td>
                                                     <td style="color: rgba(47, 61, 46, 0.8);">#<?php echo str_pad($payment['booking_id'], 5, '0', STR_PAD_LEFT); ?></td>
                                                     <td><span class="status-pill <?php echo strtolower(str_replace(' ', '-', $payment['method_name'])); ?>"><?php echo htmlspecialchars($payment['method_name']); ?></span></td>
+                                                    <td style="font-size: 12px; color: rgba(47, 61, 46, 0.5); font-family: monospace;">
+                                                        <?php echo htmlspecialchars($payment['transaction_id'] ?: '—'); ?>
+                                                    </td>
                                                     <td style="font-weight: 600; color: #16a34a;">₱ <?php echo number_format($payment['amount_paid'], 2); ?></td>
-                                                    <td><span class="status-pill <?php echo strtolower(str_replace(' ', '-', $payment['status_name'])); ?>"><?php echo htmlspecialchars($payment['status_name']); ?></span></td>
+                                                    <td style="text-align: right;"><span class="status-pill <?php echo strtolower(str_replace(' ', '-', $payment['status_name'])); ?>"><?php echo htmlspecialchars($payment['status_name']); ?></span></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -199,10 +267,11 @@ try {
                     </div>
                 </div>
             </main>
-            <div class="dashboard-footer">© 2026 West Farm Resort and Hotel · Basista, Pangasinan</div>
+            <div class="dashboard-footer">&copy; 2026 West Farm Resort and Hotel &middot; Basista, Pangasinan</div>
         </div>
     </div>
     <script>
+        // Search filter
         const paymentSearchInput = document.getElementById('paymentSearchInput');
         const paymentRows = document.querySelectorAll('#paymentTableBody tr');
         paymentSearchInput.addEventListener('keyup', function() {
@@ -213,6 +282,12 @@ try {
             });
         });
 
+        // Role switcher
+        function goToAdmin() {
+            window.location.href = '../admin/index.php';
+        }
+
+        // Logout confirmation
         document.getElementById('openLogoutModalBtn').addEventListener('click', function(e) {
             e.preventDefault();
             document.getElementById('logoutConfirmModal').style.display = 'flex';
