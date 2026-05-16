@@ -39,10 +39,10 @@
         <a href="#">PAVILLION</a>
       </div>
     </li>
-    <li><a href="../EVENTS/events.html">EVENTS</a></li>
-    <li><a href="../FAQS/faqs.html">FAQs</a></li>
-    <li><a href="../CONTACT/contact.html">CONTACT</a></li>
-    <li><a href="../BOOKING/booking.html" class="nav-book-btn">BOOK NOW</a></li>
+    <li><a href="../public/events.php">EVENTS</a></li>
+    <li><a href="../public/faqs.php">FAQs</a></li>
+    <li><a href="../public/contact.php">CONTACT</a></li>
+    <li><a href="../public/booking.php" class="nav-book-btn">BOOK NOW</a></li>
   </ul>
 </nav>
 

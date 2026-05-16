@@ -33,16 +33,16 @@
     <li class="nav-item">
       <a href="#" class="nav-btn">ACCOMMODATIONS</a>
       <div class="dropdown-menu">
-        <a href="#">GLAMPING</a>
-        <a href="#">LUXURY VILLAS</a>
-        <a href="#">COTTAGES</a>
-        <a href="#">PAVILLION</a>
+        <a href="../public/glamping.php">GLAMPING</a>
+        <a href="../public/luxury-villas.php">LUXURY VILLAS</a>
+        <a href="../public/cottages.php">COTTAGES</a>
+        <a href="../public/pavillion.php">PAVILLION</a>
       </div>
     </li>
-    <li><a href="../EVENTS/events.html">EVENTS</a></li>
-    <li><a href="../FAQS/faqs.html">FAQs</a></li>
-    <li><a href="../CONTACT/contact.html">CONTACT</a></li>
-    <li><a href="../BOOKING/booking.html" class="nav-book-btn">BOOK NOW</a></li>
+    <li><a href="../public/events.php">EVENTS</a></li>
+    <li><a href="../public/faqs.php">FAQs</a></li>
+    <li><a href="../public/contact.php">CONTACT</a></li>
+    <li><a href="../public/booking.php" class="nav-book-btn">BOOK NOW</a></li>
   </ul>
 </nav>
 

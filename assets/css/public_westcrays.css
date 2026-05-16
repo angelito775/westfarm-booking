@@ -19,39 +19,62 @@ body {
   min-height: 100vh;
 }
 
-/* NAV */
+/* NAV — matches public_index.css */
 nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 48px;
+  position: fixed;
+  top: 0; left: 0; width: 100%;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 70px;
   background: var(--green);
-  position: sticky; top: 0; z-index: 100;
+  transition: box-shadow 0.3s;
 }
+nav.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
+
 .nav-logo {
-  display: flex; align-items: center; gap: 10px;
-  font-family: 'Josefin Sans', sans-serif;
-  font-size: 20px; font-weight: 700; letter-spacing: 3px;
-  text-decoration: none; color: #fff;
+  display: flex; align-items: center; gap: 12px;
+  text-decoration: none; color: #fff; flex-shrink: 0;
 }
-.nav-logo img { height: 44px; width: auto; }
-.nav-logo-sub { font-size: 8px; letter-spacing: 2px; display: block; color: rgba(255,255,255,0.75); font-weight: 400; margin-top: -2px; }
-.nav-links { display: flex; gap: 36px; list-style: none; align-items: center; }
-.nav-links a {
+.nav-logo img { height: 42px; width: auto; }
+.nav-logo-text { display: flex; flex-direction: column; line-height: 1.2; }
+.nav-logo-text .name {
   font-family: 'Josefin Sans', sans-serif;
-  font-size: 13px; font-weight: 600; letter-spacing: 1.5px;
-  text-decoration: none; color: rgba(255,255,255,0.88); text-transform: uppercase;
-  padding-bottom: 4px; transition: color 0.2s;
+  font-size: 1rem; font-weight: 700; letter-spacing: 4px; color: #fff;
 }
-.nav-links a.active { border-bottom: 2px solid #fff; color: #fff; }
-.nav-links a:hover { color: #fff; }
+.nav-logo-text .sub {
+  font-size: 0.55rem; font-weight: 300; letter-spacing: 3px;
+  color: rgba(255,255,255,0.6); text-transform: uppercase;
+}
+
+.nav-links { display: flex; gap: 0; list-style: none; align-items: center; }
+.nav-links > li > a,
+.nav-links > li > .nav-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 16px;
+  height: 70px;
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 2.5px;
+  text-transform: uppercase; color: rgba(255,255,255,0.8);
+  text-decoration: none; background: none; border: none; cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.nav-links > li > a:hover,
+.nav-links > li > .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.nav-links > li > a.active { color: #fff; border-bottom: 2px solid var(--gold); }
+
 .nav-item { position: relative; list-style: none; }
-.nav-item > a { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.nav-item > a::after { content: " \f107"; font-family: "Font Awesome 6 Free"; font-weight: 600; font-size: 0.7rem; }
+.nav-item > a::after { content: "\f107"; font-family: "Font Awesome 6 Free"; font-weight: 600; font-size: 0.6rem; margin-left: 2px; }
 .dropdown-menu {
   display: none; position: absolute;
-  background: var(--green); min-width: 200px;
+  background: var(--green);
+  min-width: 200px;
   box-shadow: 0 12px 24px rgba(0,0,0,0.2);
   border-radius: 12px; padding: 0.6rem 0;
-  top: 35px; left: -10px; z-index: 1000;
+  top: 65px; left: -10px; z-index: 1000;
   border: 1px solid rgba(255,255,255,0.15);
 }
 .nav-item.open .dropdown-menu { display: block; }
@@ -61,9 +84,26 @@ nav {
   font-weight: 500; font-size: 0.85rem;
   color: #fff; white-space: nowrap;
   border-bottom: none; letter-spacing: 1px;
+  text-decoration: none;
 }
 .dropdown-menu a:hover { background: #2d5a2d; color: #d4a373; }
 .dropdown-menu a.active-sub { color: #7ed87e; }
+
+.nav-book-btn {
+  margin-left: 12px;
+  background: var(--gold);
+  color: #fff !important;
+  padding: 0 22px !important;
+  height: 38px !important;
+  border-radius: 2px;
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.62rem !important;
+  letter-spacing: 2px !important;
+  font-weight: 700 !important;
+  display: flex; align-items: center;
+  transition: background 0.2s !important;
+}
+.nav-book-btn:hover { background: #b07a2a !important; }
 
 /* HERO */
 .hero { width: 100%; height: 400px; position: relative; overflow: hidden; }
