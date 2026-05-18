@@ -188,6 +188,13 @@ if (!$statusColumn) {
                         elseif ($_GET['error'] === 'delete_failed') echo "Unable to delete facility.";
                         elseif ($_GET['error'] === 'delete_failed_has_bookings') echo "Cannot delete facility as it has existing bookings attached.";
                         elseif ($_GET['error'] === 'upload_failed') echo "Image upload failed. Check file type (JPG, PNG) and size (max 5MB).";
+                        elseif ($_GET['error'] === 'empty_guest_name') echo "Guest name is required.";
+                        elseif ($_GET['error'] === 'invalid_facility') echo "Please select a valid facility.";
+                        elseif ($_GET['error'] === 'empty_dates') echo "Check-in and check-out dates are required.";
+                        elseif ($_GET['error'] === 'invalid_dates') echo "Check-out date must be on or after check-in date.";
+                        elseif ($_GET['error'] === 'facility_unavailable') echo "This facility is no longer available for the selected dates.";
+                        elseif ($_GET['error'] === 'booking_failed') echo "Unable to create booking. Please try again.";
+                        elseif ($_GET['error'] === 'invalid_payment_status') echo "Invalid payment status for the selected booking status.";
                         else echo "An error occurred. Please check your inputs.";
                         ?>
                         <button class="alert-close" onclick="this.parentElement.style.display='none'">&times;</button>
@@ -428,16 +435,16 @@ if (!$statusColumn) {
                     <div class="form-grid">
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Booking Status</label>
-                            <select name="booking_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="booking_status_select" name="booking_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="Confirmed">Confirmed (Walk-in / Approved)</option>
                                 <option value="Pending">Pending (Waiting for payment)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Payment Status</label>
-                            <select name="payment_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="payment_status_select" name="payment_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="Paid">Paid (Cash / Transferred)</option>
-                                <option value="Unpaid" selected>Unpaid</option>
+                                <option value="Unpaid">Unpaid</option>
                                 <option value="Partial">Downpayment Only</option>
                             </select>
                         </div>
@@ -695,6 +702,53 @@ if (!$statusColumn) {
         });
         
         unitSelect.addEventListener('change', calculatePrice);
+
+        // ── Booking Status → Payment Status linkage ──────────────
+        const bookingStatusSelect = document.getElementById('booking_status_select');
+        const paymentStatusSelect = document.getElementById('payment_status_select');
+
+        function updatePaymentOptions() {
+            const bStatus = bookingStatusSelect.value;
+            // Save current selection
+            const currentPayment = paymentStatusSelect.value;
+
+            // Rebuild payment options based on booking status
+            paymentStatusSelect.innerHTML = '';
+
+            if (bStatus === 'Confirmed') {
+                // Confirmed → only Paid
+                const optPaid = document.createElement('option');
+                optPaid.value = 'Paid';
+                optPaid.textContent = 'Paid (Cash / Transferred)';
+                paymentStatusSelect.appendChild(optPaid);
+                paymentStatusSelect.value = 'Paid';
+            } else {
+                // Pending → Unpaid or Downpayment Only (Partial)
+                const optUnpaid = document.createElement('option');
+                optUnpaid.value = 'Unpaid';
+                optUnpaid.textContent = 'Unpaid';
+                paymentStatusSelect.appendChild(optUnpaid);
+
+                const optPartial = document.createElement('option');
+                optPartial.value = 'Partial';
+                optPartial.textContent = 'Downpayment Only';
+                paymentStatusSelect.appendChild(optPartial);
+
+                // Restore if valid, otherwise default to Unpaid
+                if (currentPayment === 'Unpaid' || currentPayment === 'Partial') {
+                    paymentStatusSelect.value = currentPayment;
+                } else {
+                    paymentStatusSelect.value = 'Unpaid';
+                }
+            }
+        }
+
+        bookingStatusSelect.addEventListener('change', updatePaymentOptions);
+        // Initialize correct options on modal open
+        document.getElementById('newBookingBtn').addEventListener('click', function() {
+            // Small delay so the form reset in the other listener runs first
+            setTimeout(updatePaymentOptions, 0);
+        });
 
         // Image Preview Handler
         const imageInput = document.getElementById('facilityImageInput');
