@@ -52,7 +52,7 @@ if (!empty($facility_ids)) {
     $counts = $statusCounts->fetchAll(PDO::FETCH_KEY_PAIR);
     $pending_count = $counts[1] ?? 0;
     $confirmed_count = $counts[2] ?? 0;
-    $checked_in_count = $counts[3] ?? 0;
+    $cancelled_count = $counts[3] ?? 0;
     $completed_count = $counts[4] ?? 0;
 }
 
@@ -137,8 +137,8 @@ if (!empty($facility_ids)) {
                                 <div class="status-content"><p>Confirmed</p><p><?php echo $confirmed_count; ?></p></div>
                             </div>
                             <div class="status-mini-card">
-                                <div class="status-icon pending"><i class="fas fa-door-open"></i></div>
-                                <div class="status-content"><p>Checked In</p><p><?php echo $checked_in_count; ?></p></div>
+                                <div class="status-icon cancelled"><i class="fas fa-times-circle"></i></div>
+                                <div class="status-content"><p>Cancelled</p><p><?php echo $cancelled_count; ?></p></div>
                             </div>
                             <div class="status-mini-card">
                                 <div class="status-icon completed"><i class="fas fa-star"></i></div>
@@ -233,18 +233,18 @@ if (!empty($facility_ids)) {
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Booking Status</label>
                             <select id="edit_booking_status" name="booking_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="Confirmed">Confirmed (Walk-in / Approved)</option>
-                                <option value="Pending">Pending (Waiting for payment)</option>
-                                <option value="Completed">Completed</option>
+                                <option value="Pending">Pending (Waiting for confirm)</option>
+                                <option value="Confirmed">Confirmed (Approved / Active)</option>
+                                <option value="Completed">Completed (Stay ended)</option>
                                 <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label style="display:block; margin-bottom:5px; font-weight:500;">Payment Status</label>
                             <select id="edit_payment_status" name="payment_status" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="Paid">Paid (Cash / Transferred)</option>
                                 <option value="Unpaid">Unpaid</option>
                                 <option value="Partial">Downpayment Only</option>
+                                <option value="Paid">Paid (Cash / Transferred)</option>
                             </select>
                         </div>
                     </div>
@@ -297,17 +297,28 @@ if (!empty($facility_ids)) {
         const editBookingStatus = document.getElementById('edit_booking_status');
         const editPaymentStatus = document.getElementById('edit_payment_status');
 
-        function updateEditPaymentOptions() {
+        function updateEditPaymentOptions(forceValue) {
             const bStatus = editBookingStatus.value;
-            const currentPayment = editPaymentStatus.value;
             editPaymentStatus.innerHTML = '';
 
-            if (bStatus === 'Confirmed' || bStatus === 'Completed') {
+            if (bStatus === 'Completed') {
+                // Completed → only Paid
                 const opt = document.createElement('option');
                 opt.value = 'Paid';
                 opt.textContent = 'Paid (Cash / Transferred)';
                 editPaymentStatus.appendChild(opt);
                 editPaymentStatus.value = 'Paid';
+            } else if (bStatus === 'Confirmed') {
+                // Confirmed → Paid or Partial
+                const optPartial = document.createElement('option');
+                optPartial.value = 'Partial';
+                optPartial.textContent = 'Downpayment Only';
+                editPaymentStatus.appendChild(optPartial);
+                const optPaid = document.createElement('option');
+                optPaid.value = 'Paid';
+                optPaid.textContent = 'Paid (Cash / Transferred)';
+                editPaymentStatus.appendChild(optPaid);
+                editPaymentStatus.value = forceValue || 'Paid';
             } else {
                 // Pending or Cancelled → Unpaid or Partial
                 const optUnpaid = document.createElement('option');
@@ -318,15 +329,13 @@ if (!empty($facility_ids)) {
                 optPartial.value = 'Partial';
                 optPartial.textContent = 'Downpayment Only';
                 editPaymentStatus.appendChild(optPartial);
-                if (currentPayment === 'Unpaid' || currentPayment === 'Partial') {
-                    editPaymentStatus.value = currentPayment;
-                } else {
-                    editPaymentStatus.value = 'Unpaid';
-                }
+                editPaymentStatus.value = forceValue || 'Unpaid';
             }
         }
 
-        editBookingStatus.addEventListener('change', updateEditPaymentOptions);
+        editBookingStatus.addEventListener('change', function() {
+            updateEditPaymentOptions();
+        });
 
         // ── Edit Booking buttons ───────────────────────────────────
         document.querySelectorAll('.edit-booking-btn').forEach(btn => {
@@ -346,14 +355,11 @@ if (!empty($facility_ids)) {
                 const checkoutDate = new Date(d.checkOutRaw + 'T00:00:00');
 
                 if (checkoutDate < today) {
-                    // Booking stay has ended — auto-set to Completed + Paid
                     editBookingStatus.value = 'Completed';
-                    updateEditPaymentOptions();
-                    editPaymentStatus.value = 'Paid';
+                    updateEditPaymentOptions('Paid');
                 } else {
                     editBookingStatus.value = d.bookingStatus;
-                    updateEditPaymentOptions();
-                    editPaymentStatus.value = d.paymentStatus;
+                    updateEditPaymentOptions(d.paymentStatus);
                 }
 
                 openModal('editBookingModal');

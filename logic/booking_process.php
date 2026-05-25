@@ -51,11 +51,18 @@ if ($action === 'owner_add_booking') {
     }
 
     // Validate payment status matches booking status
-    if ($booking_status === 'Confirmed' && $payment_status !== 'Paid') {
+    // Completed → must be Paid
+    if ($booking_status === 'Completed' && $payment_status !== 'Paid') {
         header("Location: ../owner/facilities.php?error=invalid_payment_status");
         exit();
     }
+    // Pending → cannot be Paid
     if ($booking_status === 'Pending' && $payment_status === 'Paid') {
+        header("Location: ../owner/facilities.php?error=invalid_payment_status");
+        exit();
+    }
+    // Cancelled → cannot be Paid
+    if ($booking_status === 'Cancelled' && $payment_status === 'Paid') {
         header("Location: ../owner/facilities.php?error=invalid_payment_status");
         exit();
     }
@@ -244,13 +251,18 @@ if ($action === 'owner_update_booking') {
     }
 
     // Validate payment status matches booking status
-    // Confirmed or Completed → must be Paid
-    if (($booking_status === 'Confirmed' || $booking_status === 'Completed') && $payment_status !== 'Paid') {
+    // Completed → must be Paid
+    if ($booking_status === 'Completed' && $payment_status !== 'Paid') {
         header("Location: ../owner/bookings.php?error=invalid_payment_status");
         exit();
     }
-    // Pending or Cancelled → cannot be Paid
-    if (($booking_status === 'Pending' || $booking_status === 'Cancelled') && $payment_status === 'Paid') {
+    // Pending → cannot be Paid
+    if ($booking_status === 'Pending' && $payment_status === 'Paid') {
+        header("Location: ../owner/bookings.php?error=invalid_payment_status");
+        exit();
+    }
+    // Cancelled → cannot be Paid
+    if ($booking_status === 'Cancelled' && $payment_status === 'Paid') {
         header("Location: ../owner/bookings.php?error=invalid_payment_status");
         exit();
     }

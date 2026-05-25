@@ -709,37 +709,31 @@ if (!$statusColumn) {
 
         function updatePaymentOptions() {
             const bStatus = bookingStatusSelect.value;
-            // Save current selection
             const currentPayment = paymentStatusSelect.value;
-
-            // Rebuild payment options based on booking status
             paymentStatusSelect.innerHTML = '';
 
             if (bStatus === 'Confirmed') {
-                // Confirmed → only Paid
-                const optPaid = document.createElement('option');
-                optPaid.value = 'Paid';
-                optPaid.textContent = 'Paid (Cash / Transferred)';
-                paymentStatusSelect.appendChild(optPaid);
-                paymentStatusSelect.value = 'Paid';
-            } else {
-                // Pending → Unpaid or Downpayment Only (Partial)
-                const optUnpaid = document.createElement('option');
-                optUnpaid.value = 'Unpaid';
-                optUnpaid.textContent = 'Unpaid';
-                paymentStatusSelect.appendChild(optUnpaid);
-
+                // Confirmed → Paid or Partial (walk-in with downpayment)
                 const optPartial = document.createElement('option');
                 optPartial.value = 'Partial';
                 optPartial.textContent = 'Downpayment Only';
                 paymentStatusSelect.appendChild(optPartial);
-
-                // Restore if valid, otherwise default to Unpaid
-                if (currentPayment === 'Unpaid' || currentPayment === 'Partial') {
-                    paymentStatusSelect.value = currentPayment;
-                } else {
-                    paymentStatusSelect.value = 'Unpaid';
-                }
+                const optPaid = document.createElement('option');
+                optPaid.value = 'Paid';
+                optPaid.textContent = 'Paid (Cash / Transferred)';
+                paymentStatusSelect.appendChild(optPaid);
+                paymentStatusSelect.value = (currentPayment === 'Partial') ? 'Partial' : 'Paid';
+            } else {
+                // Pending → Unpaid or Partial
+                const optUnpaid = document.createElement('option');
+                optUnpaid.value = 'Unpaid';
+                optUnpaid.textContent = 'Unpaid';
+                paymentStatusSelect.appendChild(optUnpaid);
+                const optPartial = document.createElement('option');
+                optPartial.value = 'Partial';
+                optPartial.textContent = 'Downpayment Only';
+                paymentStatusSelect.appendChild(optPartial);
+                paymentStatusSelect.value = (currentPayment === 'Unpaid' || currentPayment === 'Partial') ? currentPayment : 'Unpaid';
             }
         }
 

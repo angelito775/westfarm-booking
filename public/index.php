@@ -12,7 +12,7 @@
 
 
 <nav id="main-nav">
-  <a class="nav-logo" href="#">
+  <a class="nav-logo" href="../public/index.php">
     <img src="../assets/images/westfarmlogo.png" alt="West Farm logo">
     <div class="nav-logo-text">
       <span class="name">WEST FARM</span>
@@ -33,10 +33,10 @@
     <li class="nav-item">
       <a href="#" class="nav-btn">ACCOMMODATIONS</a>
       <div class="dropdown-menu">
-        <a href="#">GLAMPING</a>
-        <a href="#">LUXURY VILLAS</a>
-        <a href="#">COTTAGES</a>
-        <a href="#">PAVILLION</a>
+        <a href="../public/glamping.php">GLAMPING</a>
+        <a href="../public/luxury-villas.php">LUXURY VILLAS</a>
+        <a href="../public/cottages.php">COTTAGES</a>
+        <a href="../public/pavillion.php">PAVILLION</a>
       </div>
     </li>
     <li><a href="../public/events.php">EVENTS</a></li>
@@ -62,8 +62,8 @@
     <div class="hero-rule"></div>
     <p class="hero-sub">Where nature breathes and luxury rests —<br>an organic farm retreat like no other</p>
     <div class="hero-actions">
-      <a href="../BOOKING/booking.html" class="btn-primary"><i class="fas fa-calendar-check"></i> Book Your Stay</a>
-      <a href="../ABOUT/about.html" class="btn-outline"><i class="fas fa-camera"></i> Explore the Farm</a>
+      <a href="../public/booking.php" class="btn-primary"><i class="fas fa-calendar-check"></i> Book Your Stay</a>
+      <a href="../public/about.php" class="btn-outline"><i class="fas fa-camera"></i> Explore the Farm</a>
     </div>
   </div>
   <div class="hero-dots" id="hero-dots"></div>
@@ -222,7 +222,7 @@
       <p class="section-eyebrow">Celebrate Here</p>
       <h2 class="section-title">Weddings &<br><em>Private Events</em></h2>
       <p>Celebrate your most cherished moments at West Farm. From intimate garden weddings to grand corporate conferences, our team crafts every detail to perfection — surrounded by lush nature.</p>
-      <a href="../EVENTS/events.html" class="btn-primary" style="margin-bottom:40px; display:inline-flex;">LEARN MORE →</a>
+      <a href="../public/events.php" class="btn-primary" style="margin-bottom:40px; display:inline-flex;">LEARN MORE →</a>
       <div class="events-types">
         <div class="event-type">Weddings & Receptions <i class="fas fa-arrow-right"></i></div>
         <div class="event-type">Birthday Celebrations <i class="fas fa-arrow-right"></i></div>
