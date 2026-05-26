@@ -148,6 +148,19 @@ if ($is_logged_in) {
         </div>
 
         <button class="btn block" style="margin-top: 16px;" id="bookBtn" disabled>Select a facility</button>
+
+        <!-- Crayfish ordering section -->
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;">
+          <div style="font-family:'Josefin Sans',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;">Resort Dining</div>
+          <a href="../public/westcrays.php" style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1px solid #bbf7d0;border-radius:12px;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.borderColor='#16a34a';this.style.boxShadow='0 4px 12px rgba(22,163,74,0.15)';" onmouseout="this.style.borderColor='#bbf7d0';this.style.boxShadow='none';">
+            <span style="font-size:28px;">🦞</span>
+            <div style="flex:1;">
+              <div style="font-family:'Dancing Script',cursive;font-size:18px;font-weight:700;color:#166534;">West Cray Ordering</div>
+              <div style="font-size:12px;color:#16a34a;margin-top:2px;">Fresh crayfish delivered to your room</div>
+            </div>
+            <i class="fas fa-arrow-right" style="color:#16a34a;font-size:14px;"></i>
+          </a>
+        </div>
       </div>
     </aside>
   </div>

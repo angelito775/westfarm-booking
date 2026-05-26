@@ -1,3 +1,19 @@
+<?php
+session_start();
+$is_logged_in = isset($_SESSION['user_id']) && $_SESSION['user_type_id'] == 2;
+$customer_name = '';
+$customer_phone = '';
+if ($is_logged_in) {
+    require_once '../config/db_connection.php';
+    $stmt = $pdo->prepare("SELECT first_name, last_name, phone_number FROM user_profiles WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $profile = $stmt->fetch();
+    if ($profile) {
+        $customer_name = $profile['first_name'] . ' ' . $profile['last_name'];
+        $customer_phone = $profile['phone_number'] ?? '';
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,58 +67,95 @@
     <div class="hero-overlay">
       <div class="hero-breadcrumb">Amenities &rsaquo; West Cray Ordering</div>
       <h1>West <span>Cray</span><br>Ordering</h1>
-      <p>Fresh crayfish — delivered to your room or cottage</p>
+      <p>Fresh crayfish — ₱120 per kilogram, delivered to your door</p>
       <div class="hero-badges">
-        <span class="badge">Live arrival guarantee</span>
-        <span class="badge">Handpicked &amp; healthy</span>
-        <span class="badge">Resort exclusive</span>
+        <span class="badge"><i class="fas fa-check-circle"></i> Live arrival guarantee</span>
+        <span class="badge"><i class="fas fa-leaf"></i> Handpicked &amp; healthy</span>
+        <span class="badge"><i class="fas fa-weight-hanging"></i> Sold per kilo</span>
       </div>
     </div>
   </div>
 
   <div class="page">
 
-    <!-- Products -->
-    <div style="margin-bottom:2.5rem;">
-      <div class="section-label">Choose your crayfish</div>
-      <div class="product-grid" id="productGrid"></div>
-    </div>
-
-    <!-- Cart -->
-    <div style="margin-bottom:2rem;">
-      <div class="section-label">Your order</div>
-      <div class="cart-panel">
-        <div class="cart-empty" id="cartEmpty">No items yet — add some crayfish above.</div>
-        <div id="cartItems"></div>
-        <div class="cart-total" id="cartTotal" style="display:none;">
-          <span class="cart-total-label">Total</span>
-          <span class="cart-total-amount" id="totalAmt">&#8369;0</span>
+    <!-- Logged-in user banner -->
+    <?php if ($is_logged_in): ?>
+    <div class="user-banner">
+      <div class="user-banner-info">
+        <div class="user-banner-avatar"><i class="fas fa-user"></i></div>
+        <div>
+          <div class="user-banner-name">Ordering as <strong><?php echo htmlspecialchars($customer_name); ?></strong></div>
+          <div class="user-banner-meta"><?php echo $customer_phone ? htmlspecialchars($customer_phone) : 'No phone on file'; ?></div>
         </div>
       </div>
+      <a href="../logic/logout_customer.php" class="user-banner-logout">Sign out</a>
     </div>
+    <?php endif; ?>
+
+    <!-- Product -->
+    <section class="products-section">
+      <div class="section-header">
+        <div class="section-label">Our crayfish</div>
+        <div class="section-sub">Fresh from our farm — sold per kilogram</div>
+      </div>
+      <div class="product-single" id="productArea"></div>
+    </section>
+
+    <!-- Cart -->
+    <section class="cart-section">
+      <div class="section-header">
+        <div class="section-label">Your order</div>
+        <div class="cart-count-badge" id="cartCountBadge" style="display:none;"><span id="cartCountNum">0</span> kg</div>
+      </div>
+      <div class="cart-panel">
+        <div class="cart-empty" id="cartEmpty">
+          <i class="fas fa-shopping-basket"></i>
+          <span>No items yet — select a weight above.</span>
+        </div>
+        <div id="cartItems"></div>
+        <div class="cart-summary" id="cartTotal" style="display:none;">
+          <div class="cart-summary-row">
+            <span>Subtotal</span>
+            <span id="subtotalAmt">&#8369;0</span>
+          </div>
+          <div class="cart-total-row">
+            <span class="cart-total-label">Total</span>
+            <span class="cart-total-amount" id="totalAmt">&#8369;0</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Success -->
     <div class="success-box" id="successBox">
-      <div class="tick">🦞</div>
+      <div class="tick"><i class="fas fa-check-circle"></i></div>
       <h3>Order placed successfully!</h3>
-      <p id="successMsg">We'll deliver your crayfish to your room shortly.</p>
+      <p id="successMsg">We'll deliver your crayfish to your address shortly.</p>
     </div>
 
     <!-- Checkout -->
-    <div>
-      <div class="section-label">Guest details</div>
+    <section class="checkout-section">
+      <div class="section-header">
+        <div class="section-label">Guest details</div>
+        <div class="section-sub">Where should we deliver your order?</div>
+      </div>
       <div class="checkout-form">
         <div class="form-grid">
           <div class="form-group">
-            <label>Full name</label>
-            <input type="text" id="guestName" placeholder="Your name" />
+            <label><i class="fas fa-user"></i> Full name <span class="req">*</span></label>
+            <input type="text" id="guestName" value="<?php echo htmlspecialchars($customer_name); ?>" placeholder="Your name" />
           </div>
           <div class="form-group">
-            <label>Contact number</label>
-            <input type="text" id="guestPhone" placeholder="+63 9XX XXX XXXX" />
+            <label><i class="fas fa-phone"></i> Contact number <span class="req">*</span></label>
+            <input type="text" id="guestPhone" value="<?php echo htmlspecialchars($customer_phone); ?>" placeholder="+63 9XX XXX XXXX" />
+          </div>
+          <div class="form-group full">
+            <label><i class="fas fa-map-marker-alt"></i> Delivery address <span class="req">*</span></label>
+            <textarea id="guestAddress" rows="2" placeholder="Enter your complete delivery address..."></textarea>
+            <div class="form-hint">Can be inside the resort (e.g., Room 204, Mango Cottage) or an outside address.</div>
           </div>
           <div class="form-group">
-            <label>Preferred delivery time</label>
+            <label><i class="fas fa-clock"></i> Preferred delivery time <span class="req">*</span></label>
             <select id="guestTime">
               <option value="">Select time</option>
               <option>As soon as possible</option>
@@ -112,14 +165,27 @@
               <option>Evening (6PM – 9PM)</option>
             </select>
           </div>
+          <div class="form-group">
+            <label><i class="fas fa-utensils"></i> Preparation preference</label>
+            <select id="guestPrep">
+              <option value="">No preference</option>
+              <option>Live (for cooking yourself)</option>
+              <option>Cleaned &amp; prepped</option>
+              <option>Cooked — garlic butter</option>
+              <option>Cooked — spicy</option>
+              <option>Cooked — coconut milk (ginataan)</option>
+            </select>
+          </div>
           <div class="form-group full">
-            <label>Special notes</label>
+            <label><i class="fas fa-sticky-note"></i> Special notes</label>
             <textarea id="guestNotes" placeholder="Any special requests for your crayfish order..."></textarea>
           </div>
         </div>
-        <button class="checkout-btn" id="checkoutBtn" disabled onclick="placeOrder()">Place Order</button>
+        <button class="checkout-btn" id="checkoutBtn" disabled onclick="placeOrder()">
+          <i class="fas fa-paper-plane"></i> Place Order
+        </button>
       </div>
-    </div>
+    </section>
 
   </div>
 
@@ -151,11 +217,11 @@
         </div>
       </div>
       <div class="edit-qty-section">
-        <label class="edit-qty-label">Quantity</label>
+        <label class="edit-qty-label">Weight (kg)</label>
         <div class="edit-qty-ctrl">
-          <button class="edit-qty-btn" onclick="adjustEditQty(-1)">−</button>
+          <button class="edit-qty-btn" onclick="adjustEditQty(-0.5)">−</button>
           <span class="edit-qty-num" id="editQtyNum">1</span>
-          <button class="edit-qty-btn" onclick="adjustEditQty(1)">+</button>
+          <button class="edit-qty-btn" onclick="adjustEditQty(0.5)">+</button>
         </div>
       </div>
       <div class="edit-subtotal">
@@ -218,6 +284,9 @@
 
   <button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
-  <script src="../assets/js/westcrays.js"></script>
+  <script>
+  window.__isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
+  </script>
+  <script src="../assets/js/public_westcrays.js"></script>
 </body>
 </html>

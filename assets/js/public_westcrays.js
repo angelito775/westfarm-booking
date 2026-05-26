@@ -1,159 +1,157 @@
-const products = [
-  { id:1, name:'Black Creek Crayfish',    desc:'Procambarus Pictus',              price:199, img:'westcrays3.png',  tag:'popular' },
-  { id:2, name:'White Specter Crayfish',  desc:'Procambarus clarkii',             price:299, img:'westcrays4.webp', tag:'popular' },
-  { id:3, name:'Ghost Crayfish',          desc:'Procambarus clarkii ghost',       price:149, img:'westcrays5.webp', tag:'new'     },
-  { id:4, name:'Scarlet Crayfish',        desc:'Bright red, vibrant appearance',  price:199, img:'westcrays6.webp', tag:'popular' },
-  { id:5, name:'Neon or Fireball Crayfish', desc:'Freshwater Crayfish',           price:249, img:'westcrays7.jpg',  tag:'new'     },
-  { id:6, name:'Blue Ghost Crayfish',     desc:'Exclusive West Farm bred variety', price:399, img:'westcrays8.webp', tag:'new'    },
-];
+// ── Config ──
+const PRICE_PER_KG = 120;
 
-let cart = {};
+// Cart stores the selected weight
+let cart = { weight: 0 };
 
-// ── Edit modal state ──
-let editingId   = null;
-let editingQty  = 1;
-let editingSwapId = null; // tracks if user picked a different product
-
-// ── Delete modal state ──
-let pendingDeleteId       = null;
-let deleteCalledFromEdit  = false;
+// Edit modal state
+let editingWeight = 0;
+let deleteCalledFromEdit = false;
 
 // ── Helpers ──
 function escapeHtml(str) {
   return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
 }
 
-function createPlaceholder() {
-  const div = document.createElement('div');
-  div.className = 'img-placeholder';
-  div.innerHTML = `
-    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M6 36 L16 22 L24 30 L30 22 L42 36 Z" fill="#c8c2b5"/>
-      <circle cx="34" cy="16" r="6" fill="#c8c2b5"/>
-    </svg>
-    <span>crayfish</span>`;
-  return div;
+function fmt(amount) {
+  return '₱' + amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
 }
 
-// ── Render product cards ──
-function renderProducts() {
-  const grid = document.getElementById('productGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
+// ── Render the single product card ──
+function renderProduct() {
+  const area = document.getElementById('productArea');
+  if (!area) return;
 
-  products.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'card';
+  area.innerHTML = `
+    <div class="product-card">
+      <div class="product-card-img">
+        <img src="../assets/images/westcrays1.jpg" alt="Fresh Crayfish"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+        <div class="product-card-placeholder" style="display:none;">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 36 L16 22 L24 30 L30 22 L42 36 Z" fill="#c8c2b5"/>
+            <circle cx="34" cy="16" r="6" fill="#c8c2b5"/>
+          </svg>
+          <span>crayfish</span>
+        </div>
+        <span class="product-card-badge"><i class="fas fa-leaf"></i> Farm Fresh</span>
+      </div>
+      <div class="product-card-body">
+        <div class="product-card-name">Fresh Crayfish</div>
+        <div class="product-card-desc">Handpicked live crayfish from our farm. Sold per kilogram — type how many kg you need.</div>
+        <div class="product-card-price-row">
+          <span class="product-card-price">${fmt(PRICE_PER_KG)}</span>
+          <span class="product-card-unit">per kg</span>
+        </div>
 
-    const imgDiv = document.createElement('div');
-    imgDiv.className = 'card-img';
+        <div class="weight-selector">
+          <label class="weight-label"><i class="fas fa-weight-hanging"></i> Enter weight (kg)</label>
+          <div class="weight-controls">
+            <input type="number" id="weightInput" class="weight-input" min="0.5" max="100" step="0.5" placeholder="e.g. 2" />
+            <span class="weight-kg-label">kg</span>
+            <div class="weight-live-total" id="weightLiveTotal" style="display:none;">
+              <span class="weight-live-label">Live total</span>
+              <span class="weight-live-amount" id="weightLiveAmt">${fmt(0)}</span>
+            </div>
+          </div>
+          <div class="weight-hint">Minimum 0.5 kg · Maximum 100 kg</div>
+        </div>
 
-    const tagSpan = document.createElement('span');
-    tagSpan.className = `card-tag ${p.tag === 'popular' ? 'tag-popular' : 'tag-new'}`;
-    tagSpan.textContent = p.tag === 'popular' ? 'Popular' : 'New';
-    imgDiv.appendChild(tagSpan);
+        <button class="add-to-cart-btn" id="addToCartBtn" disabled onclick="addToCart()">
+          <i class="fas fa-cart-plus"></i> Add to Order
+        </button>
+      </div>
+    </div>`;
 
-    if (p.img) {
-      const img = document.createElement('img');
-      img.src = p.img;
-      img.alt = p.name;
-      img.onerror = function () { this.remove(); imgDiv.appendChild(createPlaceholder()); };
-      imgDiv.appendChild(img);
+  const inp  = document.getElementById('weightInput');
+  const btn  = document.getElementById('addToCartBtn');
+  const box  = document.getElementById('weightLiveTotal');
+  const amt  = document.getElementById('weightLiveAmt');
+
+  function onWeightChange() {
+    const w = parseFloat(inp.value) || 0;
+    if (w >= 0.5) {
+      btn.disabled = false;
+      box.style.display = 'flex';
+      amt.textContent = fmt(PRICE_PER_KG * w);
     } else {
-      imgDiv.appendChild(createPlaceholder());
+      btn.disabled = true;
+      box.style.display = 'none';
     }
+  }
 
-    const body = document.createElement('div');
-    body.className = 'card-body';
-    body.innerHTML = `
-      <div class="card-name">${escapeHtml(p.name)}</div>
-      <div class="card-desc">${escapeHtml(p.desc)}</div>
-      <div class="card-footer">
-        <span class="card-price">&#8369;${p.price}</span>
-        <button class="add-btn" data-id="${p.id}">+ Add</button>
-      </div>`;
-
-    card.appendChild(imgDiv);
-    card.appendChild(body);
-    grid.appendChild(card);
-  });
-
-  document.querySelectorAll('.add-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      addToCart(parseInt(btn.dataset.id));
-      btn.textContent = '✓ Added';
-      btn.classList.add('added');
-      setTimeout(() => { btn.textContent = '+ Add'; btn.classList.remove('added'); }, 800);
-    });
-  });
+  inp.addEventListener('input', onWeightChange);
+  inp.addEventListener('change', onWeightChange);
 }
 
 // ── Cart ──
-function addToCart(id) {
-  cart[id] = (cart[id] || 0) + 1;
-  renderCart();
-}
+function addToCart() {
+  const inp = document.getElementById('weightInput');
+  const w = parseFloat(inp.value) || 0;
+  if (w < 0.5) return;
 
-function deleteFromCart(id) {
-  // Always go through the confirmation modal
-  openDeleteModal(id, false);
+  cart.weight += w;
+  renderCart();
+
+  // Reset input
+  inp.value = '';
+  document.getElementById('addToCartBtn').disabled = true;
+  document.getElementById('weightLiveTotal').style.display = 'none';
 }
 
 function renderCart() {
-  const keys      = Object.keys(cart);
-  const emptyEl   = document.getElementById('cartEmpty');
-  const itemsEl   = document.getElementById('cartItems');
-  const totalDiv  = document.getElementById('cartTotal');
-  const totalSpan = document.getElementById('totalAmt');
-  const checkBtn  = document.getElementById('checkoutBtn');
+  const w = cart.weight;
+  const emptyEl    = document.getElementById('cartEmpty');
+  const itemsEl    = document.getElementById('cartItems');
+  const totalDiv   = document.getElementById('cartTotal');
+  const subtotalEl = document.getElementById('subtotalAmt');
+  const totalSpan  = document.getElementById('totalAmt');
+  const checkBtn   = document.getElementById('checkoutBtn');
+  const badge      = document.getElementById('cartCountBadge');
+  const badgeNum   = document.getElementById('cartCountNum');
 
-  if (!keys.length) {
-    if (emptyEl)  emptyEl.style.display  = 'block';
+  if (badge && badgeNum) {
+    if (w > 0) { badge.style.display = 'inline-flex'; badgeNum.textContent = w; }
+    else       { badge.style.display = 'none'; }
+  }
+
+  if (w <= 0) {
+    if (emptyEl)  emptyEl.style.display  = 'flex';
     if (itemsEl)  itemsEl.innerHTML      = '';
     if (totalDiv) totalDiv.style.display = 'none';
     if (checkBtn) checkBtn.disabled      = true;
     return;
   }
 
+  const total = PRICE_PER_KG * w;
+
   if (emptyEl)  emptyEl.style.display  = 'none';
-  if (totalDiv) totalDiv.style.display = 'flex';
+  if (totalDiv) totalDiv.style.display = 'block';
   if (checkBtn) checkBtn.disabled      = false;
 
-  let total = 0;
-
   if (itemsEl) {
-    itemsEl.innerHTML = keys.map(id => {
-      const p   = products.find(x => x.id == id);
-      const qty = cart[id];
-      if (!p) return '';
-      total += p.price * qty;
-      return `
-        <div class="cart-item" id="cart-item-${id}">
-          <div class="cart-thumb"><span class="thumb-icon">🦞</span></div>
-          <div class="cart-item-info">
-            <div class="cart-item-name">${escapeHtml(p.name)}</div>
-            <div class="cart-item-price">&#8369;${p.price} each &nbsp;·&nbsp; qty: <strong>${qty}</strong></div>
-          </div>
-          <div class="cart-actions">
-            <button class="edit-btn"   onclick="openModal(${id})">✏️ Edit</button>
-            <button class="delete-btn" onclick="openDeleteModal(${id}, false)">🗑️ Delete</button>
-          </div>
-        </div>`;
-    }).join('');
+    itemsEl.innerHTML = `
+      <div class="cart-item">
+        <div class="cart-thumb"><span class="thumb-icon">🦞</span></div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">Fresh Crayfish</div>
+          <div class="cart-item-price">${fmt(PRICE_PER_KG)}/kg &nbsp;&times;&nbsp; <strong>${w} kg</strong> &nbsp;=&nbsp; <strong style="color:var(--green);">${fmt(total)}</strong></div>
+        </div>
+        <div class="cart-actions">
+          <button class="edit-btn" onclick="openEditModal()"><i class="fas fa-pen"></i> Edit</button>
+          <button class="delete-btn" onclick="openDeleteModal(false)"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`;
   }
 
-  if (totalSpan) totalSpan.textContent = '₱' + total.toLocaleString();
+  if (subtotalEl) subtotalEl.textContent = fmt(total);
+  if (totalSpan)  totalSpan.textContent  = fmt(total);
 }
 
-// ── Delete Confirmation Modal ──
-function openDeleteModal(id, fromEdit) {
-  const p = products.find(x => x.id == id);
-  if (!p) return;
-
-  pendingDeleteId      = id;
+// ── Delete Modal ──
+function openDeleteModal(fromEdit) {
   deleteCalledFromEdit = fromEdit;
-
-  document.getElementById('deleteItemName').textContent = p.name;
+  document.getElementById('deleteItemName').textContent = 'Fresh Crayfish';
   document.getElementById('deleteBackdrop').classList.add('open');
   document.getElementById('deleteModal').classList.add('open');
 }
@@ -161,204 +159,145 @@ function openDeleteModal(id, fromEdit) {
 function closeDeleteModal() {
   document.getElementById('deleteBackdrop').classList.remove('open');
   document.getElementById('deleteModal').classList.remove('open');
-  pendingDeleteId      = null;
   deleteCalledFromEdit = false;
 }
 
 function confirmDelete() {
-  if (pendingDeleteId === null) return;
-  delete cart[pendingDeleteId];
+  cart.weight = 0;
   closeDeleteModal();
   if (deleteCalledFromEdit) closeModal();
   renderCart();
 }
 
 // ── Edit Modal ──
-function openModal(id) {
-  const p = products.find(x => x.id == id);
-  if (!p) return;
+function openEditModal() {
+  editingWeight = cart.weight;
 
-  editingId     = id;
-  editingSwapId = null;
-  editingQty    = cart[id] || 1;
-
-  refreshEditModalContent(p);
-
-  // Build the "switch variety" picker
-  renderSwapOptions(id);
-
-  // Open
-  document.getElementById('modalBackdrop').classList.add('open');
-  document.getElementById('editModal').classList.add('open');
-}
-
-function refreshEditModalContent(p) {
-  document.getElementById('editProductName').textContent  = p.name;
-  document.getElementById('editProductPrice').textContent = '₱' + p.price + ' each';
+  document.getElementById('editProductName').textContent  = 'Fresh Crayfish';
+  document.getElementById('editProductPrice').textContent = fmt(PRICE_PER_KG) + ' per kg';
 
   const thumbEl = document.getElementById('editThumb');
-  if (p.img) {
-    thumbEl.innerHTML = `<img src="${p.img}" alt="${escapeHtml(p.name)}" onerror="this.parentElement.textContent='🦞'">`;
-  } else {
-    thumbEl.textContent = '🦞';
-  }
+  thumbEl.innerHTML = `<img src="../assets/images/westcrays1.jpg" alt="Fresh Crayfish" onerror="this.parentElement.textContent='🦞'">`;
 
   updateModalQty();
-}
 
-function renderSwapOptions(currentId) {
-  // Remove any existing swap section first
-  const existing = document.getElementById('swapSection');
-  if (existing) existing.remove();
-
-  const body = document.querySelector('.edit-modal-body');
-  if (!body) return;
-
-  const section = document.createElement('div');
-  section.id = 'swapSection';
-  section.style.cssText = 'margin-top: 18px;';
-
-  section.innerHTML = `
-    <div style="
-      font-family: 'Josefin Sans', sans-serif;
-      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-      color: #999; margin-bottom: 10px; display: block;
-    ">Switch to a different variety</div>
-    <div id="swapGrid" style="
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    "></div>
-  `;
-
-  body.appendChild(section);
-
-  const swapGrid = section.querySelector('#swapGrid');
-
-  products.forEach(p => {
-    const isActive = (p.id == currentId || p.id == (editingSwapId || currentId));
-    const btn = document.createElement('button');
-    btn.dataset.pid = p.id;
-    btn.style.cssText = `
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 10px; border-radius: 10px;
-      border: 1.5px solid ${isActive ? 'var(--green, #1a3a1a)' : '#e0e0e0'};
-      background: ${isActive ? '#f0f7f0' : '#fafafa'};
-      cursor: pointer; text-align: left;
-      transition: all 0.18s; width: 100%;
-      font-family: 'Josefin Sans', sans-serif;
-    `;
-
-    const thumb = document.createElement('div');
-    thumb.style.cssText = `
-      width: 30px; height: 30px; border-radius: 6px;
-      background: #e8e4dc; overflow: hidden; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-    `;
-    if (p.img) {
-      const img = document.createElement('img');
-      img.src = p.img;
-      img.alt = p.name;
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-      img.onerror = () => { img.remove(); thumb.textContent = '🦞'; };
-      thumb.appendChild(img);
-    } else {
-      thumb.textContent = '🦞';
-    }
-
-    const info = document.createElement('div');
-    info.innerHTML = `
-      <div style="font-size:11px;font-weight:700;color:#1a1a1a;letter-spacing:0.3px;line-height:1.3;">${escapeHtml(p.name)}</div>
-      <div style="font-size:10px;color:var(--green,#1a3a1a);font-weight:600;">₱${p.price}</div>
-    `;
-
-    btn.appendChild(thumb);
-    btn.appendChild(info);
-    swapGrid.appendChild(btn);
-
-    btn.addEventListener('click', () => {
-      editingSwapId = p.id;
-      // Refresh product info at top of modal
-      refreshEditModalContent(p);
-      // Re-render swap options to update active state
-      renderSwapOptions(p.id);
-    });
-  });
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.getElementById('editModal').classList.add('open');
 }
 
 function closeModal() {
   document.getElementById('modalBackdrop').classList.remove('open');
   document.getElementById('editModal').classList.remove('open');
-  editingId     = null;
-  editingSwapId = null;
-  editingQty    = 1;
+  editingWeight = 0;
 }
 
 function adjustEditQty(delta) {
-  editingQty = Math.max(1, editingQty + delta);
+  editingWeight = Math.max(0, editingWeight + delta);
   updateModalQty();
 }
 
 function updateModalQty() {
-  const activeId = editingSwapId || editingId;
-  const p = products.find(x => x.id == activeId);
-  document.getElementById('editQtyNum').textContent   = editingQty;
-  document.getElementById('editSubtotal').textContent = '₱' + (p ? (p.price * editingQty).toLocaleString() : 0);
+  const displayWeight = editingWeight < 0.5 ? 0 : editingWeight;
+  document.getElementById('editQtyNum').textContent   = displayWeight + ' kg';
+  document.getElementById('editSubtotal').textContent = fmt(PRICE_PER_KG * displayWeight);
 }
 
 function saveEdit() {
-  if (editingId === null) return;
-
-  const targetId = editingSwapId || editingId;
-
-  // If swapping to a different product
-  if (editingSwapId && editingSwapId != editingId) {
-    // If that product is already in cart, add to its qty
-    cart[targetId] = (cart[targetId] || 0) + editingQty;
-    delete cart[editingId];
-  } else {
-    cart[editingId] = editingQty;
-  }
-
+  cart.weight = editingWeight < 0.5 ? 0 : editingWeight;
   renderCart();
   closeModal();
 }
 
-// Called by "🗑️ Remove this item" button inside the edit modal
 function openDeleteFromEdit() {
-  openDeleteModal(editingId, true);
+  openDeleteModal(true);
 }
 
-// ── Place Order ──
+// ── Place Order (AJAX) ──
 function placeOrder() {
-  const name  = document.getElementById('guestName')?.value.trim()  || '';
-  const phone = document.getElementById('guestPhone')?.value.trim() || '';
-  const time  = document.getElementById('guestTime')?.value         || '';
+  const name    = (document.getElementById('guestName')?.value || '').trim();
+  const phone   = (document.getElementById('guestPhone')?.value || '').trim();
+  const address = (document.getElementById('guestAddress')?.value || '').trim();
+  const time    = document.getElementById('guestTime')?.value || '';
+  const prep    = document.getElementById('guestPrep')?.value || '';
+  const notes   = (document.getElementById('guestNotes')?.value || '').trim();
 
-  if (!name || !phone || !time) {
-    alert('Please fill in your name, contact number, and preferred delivery time.');
-    return;
-  }
+  // Client-side validation
+  if (!name)    { alert('Please enter your full name.');        document.getElementById('guestName')?.focus();    return; }
+  if (!phone)   { alert('Please enter your contact number.');   document.getElementById('guestPhone')?.focus();   return; }
+  if (!address) { alert('Please enter your delivery address.'); document.getElementById('guestAddress')?.focus(); return; }
+  if (!time)    { alert('Please select a preferred delivery time.'); document.getElementById('guestTime')?.focus(); return; }
 
-  const orderItems = Object.keys(cart).map(id => {
-    const p = products.find(x => x.id == id);
-    return p ? `${p.name} ×${cart[id]}` : '';
-  }).filter(Boolean).join(', ');
+  const w     = cart.weight;
+  const total = PRICE_PER_KG * w;
 
-  const successMsg = document.getElementById('successMsg');
-  if (successMsg) {
-    successMsg.innerHTML = `Thank you, ${escapeHtml(name)}! Your order (${escapeHtml(orderItems)}) will be delivered around your chosen time. We'll text you at ${escapeHtml(phone)}.`;
-  }
+  // Show loading state on the button
+  const btn = document.getElementById('checkoutBtn');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing Order...';
 
-  const box = document.getElementById('successBox');
-  if (box) { box.style.display = 'block'; box.scrollIntoView({ behavior: 'smooth' }); }
+  // Build the POST payload
+  const payload = new URLSearchParams();
+  payload.append('guest_name', name);
+  payload.append('guest_phone', phone);
+  payload.append('delivery_address', address);
+  payload.append('weight_kg', w);
+  payload.append('price_per_kg', PRICE_PER_KG);
+  payload.append('delivery_time', time);
+  payload.append('preparation', prep);
+  payload.append('notes', notes);
 
-  cart = {};
-  renderCart();
-  ['guestName','guestPhone','guestNotes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const sel = document.getElementById('guestTime'); if (sel) sel.value = '';
+  fetch('../logic/westcrays_process.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: payload.toString()
+  })
+    .then(res => res.json())
+    .then(data => {
+      btn.innerHTML = originalText;
+      if (btn.dataset.cartActive !== 'false') btn.disabled = false;
 
-  setTimeout(() => { if (box) box.style.display = 'none'; }, 5000);
+      if (!data.success) {
+        // Show server-side validation errors
+        const msg = data.errors ? data.errors.join('\n') : data.error;
+        alert(msg);
+        return;
+      }
+
+      // ── Show success ──
+      const successMsg = document.getElementById('successMsg');
+      if (successMsg) {
+        let msg = `Order #${data.order_id} placed successfully! <strong>${data.weight_kg} kg</strong> Fresh Crayfish for <strong>${fmt(data.total)}</strong>.`;
+        msg += ` Delivered to <strong>${escapeHtml(data.address)}</strong> around <strong>${escapeHtml(data.delivery_time)}</strong>.`;
+        if (data.preparation) msg += ` Preparation: <strong>${escapeHtml(data.preparation)}</strong>.`;
+        msg += ` We'll contact you at <strong>${escapeHtml(data.phone)}</strong>.`;
+        if (data.notes) msg += ` <em>Note: ${escapeHtml(data.notes)}</em>`;
+        successMsg.innerHTML = msg;
+      }
+
+      const box = document.getElementById('successBox');
+      if (box) { box.style.display = 'block'; box.scrollIntoView({ behavior: 'smooth' }); }
+
+      // Reset everything
+      cart.weight = 0;
+      renderCart();
+      document.getElementById('guestAddress').value = '';
+      document.getElementById('guestNotes').value = '';
+      document.getElementById('guestTime').value = '';
+      document.getElementById('guestPrep').value = '';
+      if (!window.__isLoggedIn) {
+        document.getElementById('guestName').value = '';
+        document.getElementById('guestPhone').value = '';
+      }
+
+      setTimeout(() => { if (box) box.style.display = 'none'; }, 10000);
+    })
+    .catch(err => {
+      btn.innerHTML = originalText;
+      if (btn.dataset.cartActive !== 'false') btn.disabled = false;
+      console.error(err);
+      alert('Something went wrong. Please try again or call the resort.');
+    });
 }
 
 // ── Nav dropdown ──
@@ -377,17 +316,17 @@ navItems.forEach(item => {
 document.addEventListener('click', () => navItems.forEach(i => i.classList.remove('open')));
 
 // ── Expose globals for inline onclick ──
-window.openModal         = openModal;
-window.closeModal        = closeModal;
-window.adjustEditQty     = adjustEditQty;
-window.saveEdit          = saveEdit;
-window.deleteFromCart    = deleteFromCart;
-window.openDeleteModal   = openDeleteModal;
-window.closeDeleteModal  = closeDeleteModal;
-window.confirmDelete     = confirmDelete;
+window.openModal          = openEditModal;
+window.closeModal         = closeModal;
+window.adjustEditQty      = adjustEditQty;
+window.saveEdit           = saveEdit;
+window.openDeleteModal    = openDeleteModal;
+window.closeDeleteModal   = closeDeleteModal;
+window.confirmDelete      = confirmDelete;
 window.openDeleteFromEdit = openDeleteFromEdit;
-window.placeOrder        = placeOrder;
+window.placeOrder         = placeOrder;
+window.addToCart          = addToCart;
 
 // ── Init ──
-renderProducts();
+renderProduct();
 renderCart();
