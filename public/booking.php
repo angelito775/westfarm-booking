@@ -19,6 +19,8 @@ if ($is_logged_in) {
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Josefin+Sans:wght@300;400;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/public_booking.css">
+  <link rel="stylesheet" href="../assets/css/public_nav.css"> 
+
 </head>
 <body>
 
@@ -352,5 +354,6 @@ window.__bookingError = <?php echo json_encode($_GET['booking_error']); ?>;
 window.__isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
 </script>
 <script src="../assets/js/public_booking.js"></script>
+<script src="../assets/js/public_nav.js"></script>
 </body>
 </html>

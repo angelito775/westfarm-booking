@@ -29,8 +29,10 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 0 48px;
-  height: 70px;
+  min-height: 70px;
+  height: auto;
   background: var(--green);
   transition: box-shadow 0.3s;
 }
@@ -51,7 +53,7 @@ nav.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
   color: rgba(255,255,255,0.6); text-transform: uppercase;
 }
 
-.nav-links { display: flex; gap: 0; list-style: none; align-items: center; }
+.nav-links { display: flex; gap: 0; list-style: none; align-items: center; flex-wrap: wrap; }
 .nav-links > li > a,
 .nav-links > li > .nav-btn {
   display: flex; align-items: center; gap: 5px;
@@ -65,19 +67,19 @@ nav.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
 }
 .nav-links > li > a:hover,
 .nav-links > li > .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
-.nav-links > li > a.active { color: #fff; border-bottom: 2px solid var(--gold); }
+.nav-links > li > a.active { color: #fff; }
 
 .nav-item { position: relative; list-style: none; }
 .nav-item > a::after { content: "\f107"; font-family: "Font Awesome 6 Free"; font-weight: 600; font-size: 0.6rem; margin-left: 2px; }
 .dropdown-menu {
-  display: none; position: absolute;
+  position: absolute;
   background: var(--green); min-width: 200px;
   box-shadow: 0 12px 24px rgba(0,0,0,0.2);
   border-radius: 12px; padding: 0.6rem 0;
   top: 65px; left: -10px; z-index: 1000;
   border: 1px solid rgba(255,255,255,0.15);
 }
-.nav-item.open .dropdown-menu { display: block; }
+/* dropdown visibility handled by public_nav.css (opacity/visibility) */
 .dropdown-menu a {
   display: block; padding: 0.5rem 1.2rem;
   font-family: 'Josefin Sans', sans-serif;
@@ -691,6 +693,12 @@ footer { background: var(--green); display: grid; grid-template-columns: 40% 1fr
 .scroll-top { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #fff; width: 40px; height: 40px; border-radius: 8px; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 99; transition: background 0.2s; }
 .scroll-top:hover { background: var(--green-dark); }
 
+@media (max-width: 1100px) {
+  nav { padding: 0 24px; }
+  .nav-links > li > a,
+  .nav-links > li > .nav-btn { padding: 0 10px; letter-spacing: 1.5px; }
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
   .product-card { flex-direction: column; }
@@ -701,6 +709,7 @@ footer { background: var(--green); display: grid; grid-template-columns: 40% 1fr
 }
 
 @media (max-width: 640px) {
+  nav { padding: 12px 20px; flex-wrap: nowrap; }
   .hero { height: 300px; }
   .hero-overlay { padding: 0 1.5rem; }
   .hero h1 { font-size: 26px; }

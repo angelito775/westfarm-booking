@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&family=Josefin+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/public_faqs.css"/>
+  <link rel="stylesheet" href="../assets/css/public_nav.css"> 
+  
 </head>
 <body>
 
@@ -171,5 +173,6 @@
     icon.textContent = item.classList.contains('open') ? '−' : '+';
   }
 </script>
+<script src="../assets/js/public_nav.js"></script>
 </body>
 </html>
