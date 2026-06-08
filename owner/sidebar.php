@@ -44,6 +44,10 @@ $ownerNavActive = $ownerNavActive ?? 'business-overview';
             <i class="fas fa-utensils"></i>
             <span>Crayfish Orders</span>
         </a>
+        <a class="nav-item <?php echo $ownerNavActive === 'crayfish-ordering' ? 'active' : ''; ?>" href="crayfish_ordering.php">
+            <i class="fas fa-fish"></i>
+            <span>Crayfish Ordering</span>
+        </a>
         <a class="nav-item <?php echo $ownerNavActive === 'guest-reviews' ? 'active' : ''; ?>" href="reviews.php">
             <i class="fas fa-comments"></i>
             <span>Guest Reviews</span>

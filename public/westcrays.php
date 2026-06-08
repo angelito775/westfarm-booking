@@ -1,18 +1,15 @@
 <?php
 session_start();
 $is_logged_in = isset($_SESSION['user_id']) && $_SESSION['user_type_id'] == 2;
-$customer_name = '';
-$customer_phone = '';
 if ($is_logged_in) {
     require_once '../config/db_connection.php';
-    $stmt = $pdo->prepare("SELECT first_name, last_name, phone_number FROM user_profiles WHERE user_id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $profile = $stmt->fetch();
-    if ($profile) {
-        $customer_name = $profile['first_name'] . ' ' . $profile['last_name'];
-        $customer_phone = $profile['phone_number'] ?? '';
-    }
 }
+require_once '../config/crayfish_settings.php';
+$cs = getCrayfishSettings();
+$price_per_kg = $cs['price_per_kg'];
+$min_order_kg = $cs['min_order_kg'];
+$max_order_kg = $cs['max_order_kg'];
+$product_name = $cs['product_name'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -23,11 +20,11 @@ if ($is_logged_in) {
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Josefin+Sans:wght@300;400;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/public_westcrays.css">
-  <link rel="stylesheet" href="../assets/css/public_nav.css"> 
-  
+  <link rel="stylesheet" href="../assets/css/public_nav.css">
 </head>
 <body>
 
+<!-- ═══════════════ NAV ═══════════════ -->
 <nav id="main-nav">
   <a class="nav-logo" href="../public/index.php">
     <img src="../assets/images/westfarmlogo.png" alt="West Farm logo">
@@ -40,10 +37,10 @@ if ($is_logged_in) {
     <li><a href="../public/index.php">HOME</a></li>
     <li><a href="../public/about.php">ABOUT</a></li>
     <li class="nav-item">
-      <a href="#" class="nav-btn active">AMENITIES</a>
+      <a href="#" class="nav-btn">AMENITIES</a>
       <div class="dropdown-menu">
         <a href="../public/westpool.php">WEST POOL</a>
-        <a href="../public/westcrays.php" class="active">WEST CRAY ORDERING</a>
+        <a href="../public/westcrays.php" class="active-sub">WEST CRAY ORDERING</a>
         <a href="../public/playground.php">PLAYGROUND</a>
       </div>
     </li>
@@ -59,237 +56,295 @@ if ($is_logged_in) {
     <li><a href="../public/events.php">EVENTS</a></li>
     <li><a href="../public/faqs.php">FAQs</a></li>
     <li><a href="../public/contact.php">CONTACT</a></li>
-    <li><a href="../public/booking.php" class="nav-book-btn">BOOK NOW</a></li>
+    <?php if ($is_logged_in): ?>
+      <li><a href="../customer/profile.php">MY PROFILE</a></li>
+      <li><a href="../logic/logout_customer.php" class="nav-book-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);">
+        <i class="fas fa-sign-out-alt"></i> SIGN OUT
+      </a></li>
+    <?php else: ?>
+      <li><a href="#" class="nav-book-btn" onclick="openSignInModal(); return false;"><i class="fas fa-sign-in-alt"></i> SIGN IN</a></li>
+      <li><a href="../public/booking.php" class="nav-book-btn" style="margin-left:6px;">BOOK NOW</a></li>
+    <?php endif; ?>
   </ul>
 </nav>
 
-  <div class="hero">
-    <img class="hero-img" src="../assets/images/westcrays1.jpg" alt="Crayfish underwater"
-      onerror="this.style.display='none'; this.parentElement.style.background='#0d2b0d';" />
-    <div class="hero-overlay">
-      <div class="hero-breadcrumb">Amenities &rsaquo; West Cray Ordering</div>
-      <h1>West <span>Cray</span><br>Ordering</h1>
-      <p>Fresh crayfish — ₱120 per kilogram, delivered to your door</p>
-      <div class="hero-badges">
-        <span class="badge"><i class="fas fa-check-circle"></i> Live arrival guarantee</span>
-        <span class="badge"><i class="fas fa-leaf"></i> Handpicked &amp; healthy</span>
-        <span class="badge"><i class="fas fa-weight-hanging"></i> Sold per kilo</span>
-      </div>
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="wc-hero">
+  <div class="wc-hero-bg">
+    <img src="../assets/images/westcrays1.jpg" alt="Fresh Crayfish" onerror="this.style.display='none';">
+    <div class="wc-hero-overlay"></div>
+  </div>
+  <div class="wc-hero-content">
+    <div class="wc-hero-tagline">West Farm Amenities</div>
+    <h1>West Cray<br><span>Ordering</span></h1>
+    <p class="wc-hero-desc">Fresh, handpicked crayfish from our organic farm ponds — ordered by the kilogram, ready for pickup.</p>
+    <div class="wc-hero-badges">
+      <div class="wc-hero-badge"><i class="fas fa-water"></i> Farm-Raised</div>
+      <div class="wc-hero-badge"><i class="fas fa-leaf"></i> Organic</div>
+      <div class="wc-hero-badge"><i class="fas fa-weight-hanging"></i> Per Kilo</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="wc-page">
+
+  <!-- ═══ Steps ═══ -->
+  <div class="wc-steps-bar">
+    <div class="wc-step active">
+      <div class="wc-step-num"><i class="fas fa-weight-hanging"></i></div>
+      <span>Select weight</span>
+    </div>
+    <div class="wc-step-line"></div>
+    <div class="wc-step">
+      <div class="wc-step-num"><i class="fas fa-calendar-alt"></i></div>
+      <span>Pickup date</span>
+    </div>
+    <div class="wc-step-line"></div>
+    <div class="wc-step">
+      <div class="wc-step-num"><i class="fas fa-check-circle"></i></div>
+      <span>Confirm</span>
     </div>
   </div>
 
-  <div class="page">
-
-    <!-- Logged-in user banner -->
-    <?php if ($is_logged_in): ?>
-    <div class="user-banner">
-      <div class="user-banner-info">
-        <div class="user-banner-avatar"><i class="fas fa-user"></i></div>
-        <div>
-          <div class="user-banner-name">Ordering as <strong><?php echo htmlspecialchars($customer_name); ?></strong></div>
-          <div class="user-banner-meta"><?php echo $customer_phone ? htmlspecialchars($customer_phone) : 'No phone on file'; ?></div>
-        </div>
-      </div>
-      <a href="../logic/logout_customer.php" class="user-banner-logout">Sign out</a>
+  <!-- ═══ Product + Order ═══ -->
+  <section class="wc-product-section">
+    <div class="wc-product-visual">
+      <img src="../assets/images/westcrays1.jpg" alt="Fresh Live Crayfish" onerror="this.style.display='none'; this.parentElement.classList.add('wc-product-visual-fallback');">
+      <div class="wc-product-shadow"></div>
     </div>
-    <?php endif; ?>
-
-    <!-- Product -->
-    <section class="products-section">
-      <div class="section-header">
-        <div class="section-label">Our crayfish</div>
-        <div class="section-sub">Fresh from our farm — sold per kilogram</div>
+    <div class="wc-product-info">
+      <div class="wc-product-tag"><i class="fas fa-star"></i> Customer Favorite</div>
+      <h2><?php echo htmlspecialchars($product_name); ?></h2>
+      <p class="wc-product-desc">Sourced daily from our on-site crayfish ponds. Every order is handpicked, purged in clean water, and packed live — ensuring maximum freshness for your cooking.</p>
+      <div class="wc-product-specs">
+        <div class="wc-spec"><i class="fas fa-weight-hanging"></i> Sold per kilogram</div>
+        <div class="wc-spec"><i class="fas fa-clock"></i> Same-day harvest</div>
+        <div class="wc-spec"><i class="fas fa-temperature-low"></i> Live &amp; packed cold</div>
       </div>
-      <div class="product-single" id="productArea"></div>
-    </section>
-
-    <!-- Cart -->
-    <section class="cart-section">
-      <div class="section-header">
-        <div class="section-label">Your order</div>
-        <div class="cart-count-badge" id="cartCountBadge" style="display:none;"><span id="cartCountNum">0</span> kg</div>
+      <div class="wc-price-block">
+        <div class="wc-price-main">₱<?php echo number_format($price_per_kg, 0); ?> <span>per kg</span></div>
+        <div class="wc-price-sub">Min <?php echo number_format($min_order_kg, 1); ?> kg &middot; Max <?php echo number_format($max_order_kg, 0); ?> kg</div>
       </div>
-      <div class="cart-panel">
-        <div class="cart-empty" id="cartEmpty">
-          <i class="fas fa-shopping-basket"></i>
-          <span>No items yet — select a weight above.</span>
-        </div>
-        <div id="cartItems"></div>
-        <div class="cart-summary" id="cartTotal" style="display:none;">
-          <div class="cart-summary-row">
-            <span>Subtotal</span>
-            <span id="subtotalAmt">&#8369;0</span>
-          </div>
-          <div class="cart-total-row">
-            <span class="cart-total-label">Total</span>
-            <span class="cart-total-amount" id="totalAmt">&#8369;0</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Success -->
-    <div class="success-box" id="successBox">
-      <div class="tick"><i class="fas fa-check-circle"></i></div>
-      <h3>Order placed successfully!</h3>
-      <p id="successMsg">We'll deliver your crayfish to your address shortly.</p>
     </div>
+  </section>
 
-    <!-- Checkout -->
-    <section class="checkout-section">
-      <div class="section-header">
-        <div class="section-label">Guest details</div>
-        <div class="section-sub">Where should we deliver your order?</div>
+  <!-- ═══ Weight + Cart ═══ -->
+  <section class="wc-order-section">
+    <div class="wc-grid2">
+      <div class="wc-card">
+        <div class="wc-card-head"><h3><i class="fas fa-weight-hanging"></i> Select Weight</h3></div>
+        <div class="wc-card-body">
+          <div class="wc-weight-presets">
+            <button type="button" class="wc-preset-btn" onclick="setWeight(0.5)">0.5 kg<span>₱60</span></button>
+            <button type="button" class="wc-preset-btn" onclick="setWeight(1)">1 kg<span>₱120</span></button>
+            <button type="button" class="wc-preset-btn" onclick="setWeight(2)">2 kg<span>₱240</span></button>
+            <button type="button" class="wc-preset-btn" onclick="setWeight(3)">3 kg<span>₱360</span></button>
+            <button type="button" class="wc-preset-btn" onclick="setWeight(5)">5 kg<span>₱600</span></button>
+          </div>
+          <div class="wc-weight-custom">
+            <label>Or enter custom weight</label>
+            <div class="wc-weight-input-row">
+              <button class="wc-weight-minus" onclick="adjustWeight(-0.5)">−</button>
+              <input type="number" id="wcWeightInput" min="0.5" max="100" step="0.5" value="1" placeholder="—" oninput="onWeightInput()">
+              <span class="wc-weight-unit">kg</span>
+              <button class="wc-weight-plus" onclick="adjustWeight(0.5)">+</button>
+            </div>
+          </div>
+          <div class="wc-live-estimate" id="wcLiveEstimate" style="display:none;">
+            <div class="wc-estimate-label">Estimated total</div>
+            <div class="wc-estimate-amt" id="wcEstimateAmt">₱120</div>
+          </div>
+          <button class="wc-add-btn" id="wcAddBtn" onclick="addToCart()" disabled>
+            <i class="fas fa-cart-plus"></i> Add to Order
+          </button>
+        </div>
       </div>
-      <div class="checkout-form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label><i class="fas fa-user"></i> Full name <span class="req">*</span></label>
-            <input type="text" id="guestName" value="<?php echo htmlspecialchars($customer_name); ?>" placeholder="Your name" />
+
+      <div class="wc-card wc-cart-card">
+        <div class="wc-card-head">
+          <h3><i class="fas fa-receipt"></i> Your Order</h3>
+          <span class="wc-cart-badge" id="wcCartBadge" style="display:none;"><span id="wcCartKg">0</span> kg</span>
+        </div>
+        <div class="wc-card-body">
+          <div class="wc-cart-empty" id="wcCartEmpty">
+            <div class="wc-cart-empty-icon"><i class="fas fa-shopping-basket"></i></div>
+            <span>No items yet — select a weight to start.</span>
           </div>
-          <div class="form-group">
-            <label><i class="fas fa-phone"></i> Contact number <span class="req">*</span></label>
-            <input type="text" id="guestPhone" value="<?php echo htmlspecialchars($customer_phone); ?>" placeholder="+63 9XX XXX XXXX" />
+          <div id="wcCartItems"></div>
+          <div class="wc-cart-summary" id="wcCartSummary" style="display:none;">
+            <div class="wc-summary-row"><span>Subtotal</span><span id="wcSubtotal">₱0</span></div>
+            <div class="wc-summary-divider"></div>
+            <div class="wc-summary-row wc-summary-total"><span>Total</span><span id="wcTotalAmt">₱0</span></div>
           </div>
-          <div class="form-group full">
-            <label><i class="fas fa-map-marker-alt"></i> Delivery address <span class="req">*</span></label>
-            <textarea id="guestAddress" rows="2" placeholder="Enter your complete delivery address..."></textarea>
-            <div class="form-hint">Can be inside the resort (e.g., Room 204, Mango Cottage) or an outside address.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Pickup Date ═══ -->
+  <section class="wc-pickup-section">
+    <div class="wc-card">
+      <div class="wc-card-head"><h3><i class="fas fa-calendar-alt"></i> Pickup Date &amp; Time</h3></div>
+      <div class="wc-card-body">
+        <p class="wc-pickup-intro">When would you like to pick up your crayfish? We'll have them harvested, purged, and packed live for you.</p>
+        <div class="wc-pickup-grid">
+          <div class="wc-field">
+            <label><i class="fas fa-calendar"></i> Preferred pickup date <span class="wc-req">*</span></label>
+            <input type="date" id="wcPickupDate" min="<?php echo date('Y-m-d'); ?>">
           </div>
-          <div class="form-group">
-            <label><i class="fas fa-clock"></i> Preferred delivery time <span class="req">*</span></label>
-            <select id="guestTime">
-              <option value="">Select time</option>
-              <option>As soon as possible</option>
+          <div class="wc-field">
+            <label><i class="fas fa-clock"></i> Preferred time <span class="wc-req">*</span></label>
+            <select id="wcPickupTime">
+              <option value="">Select time window</option>
               <option>Morning (7AM – 11AM)</option>
               <option>Noon (11AM – 2PM)</option>
               <option>Afternoon (2PM – 6PM)</option>
               <option>Evening (6PM – 9PM)</option>
             </select>
           </div>
-          <div class="form-group">
-            <label><i class="fas fa-utensils"></i> Preparation preference</label>
-            <select id="guestPrep">
-              <option value="">No preference</option>
-              <option>Live (for cooking yourself)</option>
-              <option>Cleaned &amp; prepped</option>
-              <option>Cooked — garlic butter</option>
-              <option>Cooked — spicy</option>
-              <option>Cooked — coconut milk (ginataan)</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label><i class="fas fa-sticky-note"></i> Special notes</label>
-            <textarea id="guestNotes" placeholder="Any special requests for your crayfish order..."></textarea>
-          </div>
-        </div>
-        <button class="checkout-btn" id="checkoutBtn" disabled onclick="placeOrder()">
-          <i class="fas fa-paper-plane"></i> Place Order
-        </button>
-      </div>
-    </section>
-
-  </div>
-
-  <!-- DELETE CONFIRM MODAL -->
-  <div class="modal-backdrop" id="deleteBackdrop" onclick="closeDeleteModal()"></div>
-  <div class="delete-modal" id="deleteModal">
-    <div class="delete-modal-icon">🗑️</div>
-    <div class="delete-modal-title">Remove Item?</div>
-    <div class="delete-modal-msg">Are you sure you want to remove <strong id="deleteItemName"></strong> from your order?</div>
-    <div class="delete-modal-footer">
-      <button class="edit-cancel-btn" onclick="closeDeleteModal()">Cancel</button>
-      <button class="delete-confirm-btn" onclick="confirmDelete()">Yes, Remove</button>
-    </div>
-  </div>
-
-  <!-- EDIT MODAL -->
-  <div class="modal-backdrop" id="modalBackdrop" onclick="closeModal()"></div>
-  <div class="edit-modal" id="editModal">
-    <div class="edit-modal-header">
-      <div class="edit-modal-title">Edit Order Item</div>
-      <button class="edit-modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="edit-modal-body">
-      <div class="edit-product-info">
-        <div class="edit-thumb" id="editThumb">🦞</div>
-        <div>
-          <div class="edit-product-name" id="editProductName"></div>
-          <div class="edit-product-price" id="editProductPrice"></div>
         </div>
       </div>
-      <div class="edit-qty-section">
-        <label class="edit-qty-label">Weight (kg)</label>
-        <div class="edit-qty-ctrl">
-          <button class="edit-qty-btn" onclick="adjustEditQty(-0.5)">−</button>
-          <span class="edit-qty-num" id="editQtyNum">1</span>
-          <button class="edit-qty-btn" onclick="adjustEditQty(0.5)">+</button>
-        </div>
-      </div>
-      <div class="edit-subtotal">
-        Subtotal: <span id="editSubtotal">₱0</span>
-      </div>
     </div>
-    <div class="edit-modal-delete-row">
-      <button class="edit-delete-item-btn" onclick="openDeleteFromEdit()">🗑️ Remove this item</button>
-    </div>
-    <div class="edit-modal-footer">
-      <button class="edit-cancel-btn" onclick="closeModal()">Cancel</button>
-      <button class="edit-save-btn" onclick="saveEdit()">Save Changes</button>
-    </div>
+  </section>
+
+  <!-- ═══ Success ═══ -->
+  <div class="wc-success" id="wcSuccess">
+    <div class="wc-success-ring"><i class="fas fa-check"></i></div>
+    <h3>Order Placed Successfully!</h3>
+    <p id="wcSuccessMsg">We'll prepare your crayfish shortly.</p>
   </div>
 
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-image">
-      <img src="../assets/images/westfarm1.jpg" alt="WestFarm sign">
-    </div>
-    <div class="footer-col">
-      <h4>Call Us</h4>
-      <div class="footer-phones">
-        <a href="tel:09107305969">0910-730-5969</a>
-        <a href="tel:09630113868">0963-011-3868</a>
-      </div>
-      <div class="footer-hours">
-        Monday to Friday &nbsp;·&nbsp; 9am – 10pm<br>
-        Weekend &nbsp;·&nbsp; 8am – 10pm
-      </div>
-      <div class="footer-social">
-        <a href="#"><i class="fab fa-facebook-f"></i></a>
-        <a href="#"><i class="fab fa-instagram"></i></a>
-        <a href="#"><i class="fab fa-tiktok"></i></a>
-      </div>
-    </div>
-    <div class="footer-col footer-nav">
-      <h4>Navigation</h4>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Amenities</a>
-      <a href="#">Accommodations</a>
-      <a href="#">Events</a>
-      <a href="#">FAQs</a>
-      <a href="#">Contact</a>
-    </div>
-    <div class="footer-col footer-contact">
-      <h4>Contact Info</h4>
-      <p>📍 Dumpay West, Basista,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pangasinan, Philippines</p>
-      <p>✉️ <a href="mailto:westfarmresort@gmail.com">westfarmresort@gmail.com</a></p>
-    </div>
-    <div class="footer-bottom">
+  <!-- ═══ Place Order ═══ -->
+  <section class="wc-place-section">
+    <button class="wc-place-btn" id="wcPlaceBtn" disabled onclick="placeOrder()">
+      <i class="fas fa-paper-plane"></i> Place Order
+    </button>
+    <div class="wc-place-hint" id="wcPlaceHint"><i class="fas fa-info-circle"></i> Add at least 0.5 kg and select a pickup date to enable ordering.</div>
+  </section>
+
+</div>
+
+<!-- ═══ Edit Modal ═══ -->
+<div class="wc-modal-bg" id="wcEditBg" onclick="closeEditModal()"></div>
+<div class="wc-modal" id="wcEditModal">
+  <div class="wc-modal-top">
+    <h4>Edit Order</h4>
+    <button class="wc-modal-x" onclick="closeEditModal()">✕</button>
+  </div>
+  <div class="wc-modal-body">
+    <div class="wc-edit-product">
+      <div class="wc-edit-thumb"><i class="fas fa-fish"></i></div>
       <div>
-        <a href="#">Terms &amp; Conditions</a>
-        <a href="#">Privacy Policy</a>
+        <div class="wc-edit-name">Fresh Crayfish</div>
+        <div class="wc-edit-price">₱120 per kg</div>
       </div>
-      <div>© 2026. Angelito, Hazel, Relynne, Raymund All rights reserved.</div>
     </div>
-  </footer>
+    <div class="wc-edit-qty-row">
+      <label>Weight</label>
+      <div class="wc-edit-qty-ctrl">
+        <button class="wc-edit-qty-btn" onclick="adjustEditQty(-0.5)">−</button>
+        <span class="wc-edit-qty-val" id="wcEditQtyVal">1 kg</span>
+        <button class="wc-edit-qty-btn" onclick="adjustEditQty(0.5)">+</button>
+      </div>
+    </div>
+    <div class="wc-edit-sub"><span>Subtotal: <strong id="wcEditSubtotal">₱120</strong></span></div>
+  </div>
+  <div class="wc-modal-actions">
+    <button class="wc-btn-ghost" onclick="closeEditModal()">Cancel</button>
+    <button class="wc-btn-primary" onclick="saveEdit()">Save Changes</button>
+  </div>
+</div>
 
-  <button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
+<!-- ═══ Delete Modal ═══ -->
+<div class="wc-modal-bg" id="wcDeleteBg" onclick="closeDeleteModal()"></div>
+<div class="wc-modal" id="wcDeleteModal">
+  <div class="wc-modal-icon wc-modal-icon-danger"><i class="fas fa-trash-alt"></i></div>
+  <h4>Remove Item?</h4>
+  <p>Are you sure you want to remove <strong id="wcDeleteName"></strong> from your order?</p>
+  <div class="wc-modal-actions">
+    <button class="wc-btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+    <button class="wc-btn-danger" onclick="confirmDelete()">Yes, Remove</button>
+  </div>
+</div>
 
-  <script>
-  window.__isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
-  </script>
-  <script src="../assets/js/public_westcrays.js"></script>
-</body>
+<!-- ═══ Sign In Modal ═══ -->
+<div class="wc-modal-bg" id="wcSignInBg" onclick="closeSignInModal()"></div>
+<div class="wc-modal" id="wcSignInModal" style="max-width:400px;">
+  <div class="wc-modal-top">
+    <h4><i class="fas fa-sign-in-alt"></i> Sign In</h4>
+    <button class="wc-modal-x" onclick="closeSignInModal()">✕</button>
+  </div>
+  <div class="wc-modal-body" style="padding:24px 20px 10px;">
+    <p style="font-size:13px;color:var(--text-soft);margin-bottom:18px;text-align:center;">Sign in to link your order to your account.</p>
+    <div class="wc-signin-field" style="margin-bottom:14px;">
+      <label style="font-family:'Josefin Sans',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-soft);font-weight:600;display:block;margin-bottom:6px;">Email</label>
+      <input type="email" id="wcSignInEmail" placeholder="you@example.com" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--cream-warm);font-family:'Lora',serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;">
+    </div>
+    <div class="wc-signin-field" style="margin-bottom:6px;">
+      <label style="font-family:'Josefin Sans',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-soft);font-weight:600;display:block;margin-bottom:6px;">Password</label>
+      <input type="password" id="wcSignInPass" placeholder="••••••••" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--cream-warm);font-family:'Lora',serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;">
+    </div>
+    <p style="font-size:11px;color:#bbb;text-align:right;margin-bottom:16px;margin-top:4px;"><a href="#" style="color:var(--forest);text-decoration:none;">Forgot password?</a></p>
+    <button onclick="submitSignIn()" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--forest),var(--forest-mid));color:#fff;border:none;border-radius:50px;font-family:'Josefin Sans',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(26,58,26,0.2);">
+      <i class="fas fa-sign-in-alt"></i> Sign In
+    </button>
+    <p style="font-size:12px;color:#bbb;text-align:center;margin-top:14px;">Don't have an account? <a href="../pages/register.php" style="color:var(--forest);font-weight:600;text-decoration:none;">Create Account</a></p>
+  </div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-image">
+    <img src="../assets/images/westfarm1.jpg" alt="WestFarm sign">
+  </div>
+  <div class="footer-col">
+    <h4>Call Us</h4>
+    <div class="footer-phones">
+      <a href="tel:09107305969">0910-730-5969</a>
+      <a href="tel:09630113868">0963-011-3868</a>
+    </div>
+    <div class="footer-hours">
+      Monday to Friday &nbsp;·&nbsp; 9am – 10pm<br>
+      Weekend &nbsp;·&nbsp; 8am – 10pm
+    </div>
+    <div class="footer-social">
+      <a href="#"><i class="fab fa-facebook-f"></i></a>
+      <a href="#"><i class="fab fa-instagram"></i></a>
+      <a href="#"><i class="fab fa-tiktok"></i></a>
+    </div>
+  </div>
+  <div class="footer-col footer-nav">
+    <h4>Navigation</h4>
+    <a href="#">Home</a>
+    <a href="#">About</a>
+    <a href="#">Amenities</a>
+    <a href="#">Accommodations</a>
+    <a href="#">Events</a>
+    <a href="#">FAQs</a>
+    <a href="#">Contact</a>
+  </div>
+  <div class="footer-col footer-contact">
+    <h4>Contact Info</h4>
+    <p>📍 Dumpay West, Basista,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pangasinan, Philippines</p>
+    <p>✉️ <a href="mailto:westfarmresort@gmail.com">westfarmresort@gmail.com</a></p>
+  </div>
+  <div class="footer-bottom">
+    <div>
+      <a href="#">Terms &amp; Conditions</a>
+      <a href="#">Privacy Policy</a>
+    </div>
+    <div>© 2026. Angelito, Hazel, Relynne, Raymund All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+window.__isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
+window.__crayfishPrice = <?php echo json_encode($price_per_kg); ?>;
+window.__crayfishMin = <?php echo json_encode($min_order_kg); ?>;
+window.__crayfishMax = <?php echo json_encode($max_order_kg); ?>;
+</script>
+<script src="../assets/js/public_westcrays.js"></script>
 <script src="../assets/js/public_nav.js"></script>
+</body>
 </html>

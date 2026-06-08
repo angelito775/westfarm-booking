@@ -1,251 +1,266 @@
-// ── Config ──
-const PRICE_PER_KG = 120;
+/* ═══════════════════════════════════════════
+   WEST CRAYS — Public Ordering Page JS
+   DB columns: customer_id, status_id, quantity_kg,
+               price_per_kg, total_amount, pickup_date
+   ═══════════════════════════════════════════ */
 
-// Cart stores the selected weight
+const PRICE_PER_KG = (window.__crayfishPrice !== undefined) ? parseFloat(window.__crayfishPrice) : 120;
+const MIN_ORDER_KG = (window.__crayfishMin !== undefined) ? parseFloat(window.__crayfishMin) : 0.5;
+const MAX_ORDER_KG = (window.__crayfishMax !== undefined) ? parseFloat(window.__crayfishMax) : 100;
+
 let cart = { weight: 0 };
-
-// Edit modal state
 let editingWeight = 0;
-let deleteCalledFromEdit = false;
 
 // ── Helpers ──
-function escapeHtml(str) {
-  return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-}
-
 function fmt(amount) {
-  return '₱' + amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
+  return '₱' + amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-// ── Render the single product card ──
-function renderProduct() {
-  const area = document.getElementById('productArea');
-  if (!area) return;
+// ── Weight input ──
+function setWeight(w) {
+  const inp = document.getElementById('wcWeightInput');
+  if (inp) { inp.value = w; onWeightInput(); }
+}
 
-  area.innerHTML = `
-    <div class="product-card">
-      <div class="product-card-img">
-        <img src="../assets/images/westcrays1.jpg" alt="Fresh Crayfish"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-        <div class="product-card-placeholder" style="display:none;">
-          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 36 L16 22 L24 30 L30 22 L42 36 Z" fill="#c8c2b5"/>
-            <circle cx="34" cy="16" r="6" fill="#c8c2b5"/>
-          </svg>
-          <span>crayfish</span>
-        </div>
-        <span class="product-card-badge"><i class="fas fa-leaf"></i> Farm Fresh</span>
-      </div>
-      <div class="product-card-body">
-        <div class="product-card-name">Fresh Crayfish</div>
-        <div class="product-card-desc">Handpicked live crayfish from our farm. Sold per kilogram — type how many kg you need.</div>
-        <div class="product-card-price-row">
-          <span class="product-card-price">${fmt(PRICE_PER_KG)}</span>
-          <span class="product-card-unit">per kg</span>
-        </div>
+function adjustWeight(delta) {
+  const inp = document.getElementById('wcWeightInput');
+  let v = parseFloat(inp.value) || 0;
+  v = Math.max(MIN_ORDER_KG, Math.min(MAX_ORDER_KG, Math.round((v + delta) * 2) / 2));
+  inp.value = v;
+  onWeightInput();
+}
 
-        <div class="weight-selector">
-          <label class="weight-label"><i class="fas fa-weight-hanging"></i> Enter weight (kg)</label>
-          <div class="weight-controls">
-            <input type="number" id="weightInput" class="weight-input" min="0.5" max="100" step="0.5" placeholder="e.g. 2" />
-            <span class="weight-kg-label">kg</span>
-            <div class="weight-live-total" id="weightLiveTotal" style="display:none;">
-              <span class="weight-live-label">Live total</span>
-              <span class="weight-live-amount" id="weightLiveAmt">${fmt(0)}</span>
-            </div>
-          </div>
-          <div class="weight-hint">Minimum 0.5 kg · Maximum 100 kg</div>
-        </div>
+function onWeightInput() {
+  const inp  = document.getElementById('wcWeightInput');
+  const btn  = document.getElementById('wcAddBtn');
+  const box  = document.getElementById('wcLiveEstimate');
+  const amt  = document.getElementById('wcEstimateAmt');
+  const w    = parseFloat(inp.value) || 0;
 
-        <button class="add-to-cart-btn" id="addToCartBtn" disabled onclick="addToCart()">
-          <i class="fas fa-cart-plus"></i> Add to Order
-        </button>
-      </div>
-    </div>`;
+  document.querySelectorAll('.wc-preset-btn').forEach(b => {
+    const bw = parseFloat(b.textContent);
+    b.classList.toggle('active', Math.abs(bw - w) < 0.01);
+  });
 
-  const inp  = document.getElementById('weightInput');
-  const btn  = document.getElementById('addToCartBtn');
-  const box  = document.getElementById('weightLiveTotal');
-  const amt  = document.getElementById('weightLiveAmt');
-
-  function onWeightChange() {
-    const w = parseFloat(inp.value) || 0;
-    if (w >= 0.5) {
-      btn.disabled = false;
-      box.style.display = 'flex';
-      amt.textContent = fmt(PRICE_PER_KG * w);
-    } else {
-      btn.disabled = true;
-      box.style.display = 'none';
-    }
+  if (w >= MIN_ORDER_KG && w <= MAX_ORDER_KG) {
+    btn.disabled = false;
+    box.style.display = 'flex';
+    amt.textContent = fmt(PRICE_PER_KG * w);
+  } else {
+    btn.disabled = true;
+    if (box) box.style.display = 'none';
   }
-
-  inp.addEventListener('input', onWeightChange);
-  inp.addEventListener('change', onWeightChange);
 }
 
 // ── Cart ──
 function addToCart() {
-  const inp = document.getElementById('weightInput');
+  const inp = document.getElementById('wcWeightInput');
   const w = parseFloat(inp.value) || 0;
-  if (w < 0.5) return;
+  if (w < MIN_ORDER_KG || w > MAX_ORDER_KG) return;
 
-  cart.weight += w;
+  cart.weight = Math.round((cart.weight + w) * 2) / 2;
   renderCart();
 
-  // Reset input
   inp.value = '';
-  document.getElementById('addToCartBtn').disabled = true;
-  document.getElementById('weightLiveTotal').style.display = 'none';
+  document.getElementById('wcAddBtn').disabled = true;
+  document.getElementById('wcLiveEstimate').style.display = 'none';
+  document.querySelectorAll('.wc-preset-btn').forEach(b => b.classList.remove('active'));
 }
 
 function renderCart() {
   const w = cart.weight;
-  const emptyEl    = document.getElementById('cartEmpty');
-  const itemsEl    = document.getElementById('cartItems');
-  const totalDiv   = document.getElementById('cartTotal');
-  const subtotalEl = document.getElementById('subtotalAmt');
-  const totalSpan  = document.getElementById('totalAmt');
-  const checkBtn   = document.getElementById('checkoutBtn');
-  const badge      = document.getElementById('cartCountBadge');
-  const badgeNum   = document.getElementById('cartCountNum');
+  const emptyEl  = document.getElementById('wcCartEmpty');
+  const itemsEl  = document.getElementById('wcCartItems');
+  const summary  = document.getElementById('wcCartSummary');
+  const subEl    = document.getElementById('wcSubtotal');
+  const totEl    = document.getElementById('wcTotalAmt');
+  const badge    = document.getElementById('wcCartBadge');
+  const badgeKg  = document.getElementById('wcCartKg');
 
-  if (badge && badgeNum) {
-    if (w > 0) { badge.style.display = 'inline-flex'; badgeNum.textContent = w; }
-    else       { badge.style.display = 'none'; }
+  if (badge && badgeKg) {
+    if (w > 0) { badge.style.display = 'inline-flex'; badgeKg.textContent = w; }
+    else { badge.style.display = 'none'; }
   }
 
   if (w <= 0) {
-    if (emptyEl)  emptyEl.style.display  = 'flex';
-    if (itemsEl)  itemsEl.innerHTML      = '';
-    if (totalDiv) totalDiv.style.display = 'none';
-    if (checkBtn) checkBtn.disabled      = true;
+    if (emptyEl) emptyEl.style.display = 'flex';
+    if (itemsEl) itemsEl.innerHTML = '';
+    if (summary) summary.style.display = 'none';
+    updatePlaceBtn();
     return;
   }
 
   const total = PRICE_PER_KG * w;
 
-  if (emptyEl)  emptyEl.style.display  = 'none';
-  if (totalDiv) totalDiv.style.display = 'block';
-  if (checkBtn) checkBtn.disabled      = false;
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (summary) summary.style.display = 'block';
 
   if (itemsEl) {
     itemsEl.innerHTML = `
-      <div class="cart-item">
-        <div class="cart-thumb"><span class="thumb-icon">🦞</span></div>
-        <div class="cart-item-info">
-          <div class="cart-item-name">Fresh Crayfish</div>
-          <div class="cart-item-price">${fmt(PRICE_PER_KG)}/kg &nbsp;&times;&nbsp; <strong>${w} kg</strong> &nbsp;=&nbsp; <strong style="color:var(--green);">${fmt(total)}</strong></div>
+      <div class="wc-cart-item">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">Fresh Crayfish</div>
+          <div style="font-size:12px;color:var(--text-soft);margin-top:2px;">
+            ${fmt(PRICE_PER_KG)}/kg &nbsp;×&nbsp; <strong>${w} kg</strong> &nbsp;=&nbsp;
+            <strong style="color:var(--green);">${fmt(total)}</strong>
+          </div>
         </div>
-        <div class="cart-actions">
-          <button class="edit-btn" onclick="openEditModal()"><i class="fas fa-pen"></i> Edit</button>
-          <button class="delete-btn" onclick="openDeleteModal(false)"><i class="fas fa-trash"></i></button>
+        <div class="wc-cart-actions">
+          <button class="wc-btn-edit" onclick="openEditModal()"><i class="fas fa-pen"></i> Edit</button>
+          <button class="wc-btn-remove" onclick="openDeleteModal()"><i class="fas fa-trash"></i></button>
         </div>
       </div>`;
   }
 
-  if (subtotalEl) subtotalEl.textContent = fmt(total);
-  if (totalSpan)  totalSpan.textContent  = fmt(total);
+  if (subEl) subEl.textContent = fmt(total);
+  if (totEl) totEl.textContent = fmt(total);
+
+  updatePlaceBtn();
 }
 
+function updatePlaceBtn() {
+  const btn  = document.getElementById('wcPlaceBtn');
+  const hint = document.getElementById('wcPlaceHint');
+  const date = document.getElementById('wcPickupDate')?.value || '';
+  const time = document.getElementById('wcPickupTime')?.value || '';
+  const hasWeight = cart.weight > 0;
+  const hasDate   = date.length > 0;
+  const hasTime   = time.length > 0;
+
+  if (hasWeight && hasDate && hasTime) {
+    btn.disabled = false;
+    if (hint) hint.style.display = 'none';
+  } else {
+    btn.disabled = true;
+    if (hint) {
+      hint.style.display = 'block';
+      if (!hasWeight) hint.innerHTML = '<i class="fas fa-info-circle"></i> Add at least ' + MIN_ORDER_KG + ' kg to enable ordering.';
+      else if (!hasDate) hint.innerHTML = '<i class="fas fa-info-circle"></i> Select a pickup date to enable ordering.';
+      else if (!hasTime) hint.innerHTML = '<i class="fas fa-info-circle"></i> Select a pickup time to enable ordering.';
+    }
+  }
+}
+
+// Listen for pickup date/time changes
+document.addEventListener('DOMContentLoaded', function() {
+  const dateEl = document.getElementById('wcPickupDate');
+  const timeEl = document.getElementById('wcPickupTime');
+  if (dateEl) dateEl.addEventListener('change', updatePlaceBtn);
+  if (timeEl) timeEl.addEventListener('change', updatePlaceBtn);
+});
+
 // ── Delete Modal ──
-function openDeleteModal(fromEdit) {
-  deleteCalledFromEdit = fromEdit;
-  document.getElementById('deleteItemName').textContent = 'Fresh Crayfish';
-  document.getElementById('deleteBackdrop').classList.add('open');
-  document.getElementById('deleteModal').classList.add('open');
+function openDeleteModal() {
+  document.getElementById('wcDeleteName').textContent = cart.weight + ' kg Fresh Crayfish';
+  document.getElementById('wcDeleteBg').classList.add('open');
+  document.getElementById('wcDeleteModal').classList.add('open');
 }
 
 function closeDeleteModal() {
-  document.getElementById('deleteBackdrop').classList.remove('open');
-  document.getElementById('deleteModal').classList.remove('open');
-  deleteCalledFromEdit = false;
+  document.getElementById('wcDeleteBg').classList.remove('open');
+  document.getElementById('wcDeleteModal').classList.remove('open');
 }
 
 function confirmDelete() {
   cart.weight = 0;
   closeDeleteModal();
-  if (deleteCalledFromEdit) closeModal();
   renderCart();
 }
 
 // ── Edit Modal ──
 function openEditModal() {
   editingWeight = cart.weight;
-
-  document.getElementById('editProductName').textContent  = 'Fresh Crayfish';
-  document.getElementById('editProductPrice').textContent = fmt(PRICE_PER_KG) + ' per kg';
-
-  const thumbEl = document.getElementById('editThumb');
-  thumbEl.innerHTML = `<img src="../assets/images/westcrays1.jpg" alt="Fresh Crayfish" onerror="this.parentElement.textContent='🦞'">`;
-
-  updateModalQty();
-
-  document.getElementById('modalBackdrop').classList.add('open');
-  document.getElementById('editModal').classList.add('open');
+  updateEditModalUI();
+  document.getElementById('wcEditBg').classList.add('open');
+  document.getElementById('wcEditModal').classList.add('open');
 }
 
-function closeModal() {
-  document.getElementById('modalBackdrop').classList.remove('open');
-  document.getElementById('editModal').classList.remove('open');
+function closeEditModal() {
+  document.getElementById('wcEditBg').classList.remove('open');
+  document.getElementById('wcEditModal').classList.remove('open');
   editingWeight = 0;
 }
 
 function adjustEditQty(delta) {
-  editingWeight = Math.max(0, editingWeight + delta);
-  updateModalQty();
+  editingWeight = Math.max(MIN_ORDER_KG, Math.min(MAX_ORDER_KG, Math.round((editingWeight + delta) * 2) / 2));
+  updateEditModalUI();
 }
 
-function updateModalQty() {
-  const displayWeight = editingWeight < 0.5 ? 0 : editingWeight;
-  document.getElementById('editQtyNum').textContent   = displayWeight + ' kg';
-  document.getElementById('editSubtotal').textContent = fmt(PRICE_PER_KG * displayWeight);
+function updateEditModalUI() {
+  document.getElementById('wcEditQtyVal').textContent = editingWeight + ' kg';
+  document.getElementById('wcEditSubtotal').textContent = fmt(PRICE_PER_KG * editingWeight);
 }
 
 function saveEdit() {
-  cart.weight = editingWeight < 0.5 ? 0 : editingWeight;
+  cart.weight = editingWeight;
   renderCart();
-  closeModal();
+  closeEditModal();
 }
 
-function openDeleteFromEdit() {
-  openDeleteModal(true);
+// ── Sign In Modal ──
+function openSignInModal() {
+  document.getElementById('wcSignInBg').classList.add('open');
+  document.getElementById('wcSignInModal').classList.add('open');
+}
+
+function closeSignInModal() {
+  document.getElementById('wcSignInBg').classList.remove('open');
+  document.getElementById('wcSignInModal').classList.remove('open');
+}
+
+function submitSignIn() {
+  const email = document.getElementById('wcSignInEmail').value.trim();
+  const password = document.getElementById('wcSignInPass').value;
+
+  if (!email) { alert('Please enter your email.'); return; }
+  if (!password) { alert('Please enter your password.'); return; }
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '../logic/auth_process.php';
+  form.style.display = 'none';
+
+  const emailInput = document.createElement('input');
+  emailInput.name = 'email';
+  emailInput.value = email;
+  form.appendChild(emailInput);
+
+  const passInput = document.createElement('input');
+  passInput.name = 'password';
+  passInput.value = password;
+  form.appendChild(passInput);
+
+  const btnInput = document.createElement('input');
+  btnInput.name = 'login_btn';
+  btnInput.value = '1';
+  form.appendChild(btnInput);
+
+  document.body.appendChild(form);
+
+  closeSignInModal();
+
+  form.submit();
 }
 
 // ── Place Order (AJAX) ──
 function placeOrder() {
-  const name    = (document.getElementById('guestName')?.value || '').trim();
-  const phone   = (document.getElementById('guestPhone')?.value || '').trim();
-  const address = (document.getElementById('guestAddress')?.value || '').trim();
-  const time    = document.getElementById('guestTime')?.value || '';
-  const prep    = document.getElementById('guestPrep')?.value || '';
-  const notes   = (document.getElementById('guestNotes')?.value || '').trim();
+  const pickupDate = document.getElementById('wcPickupDate')?.value || '';
+  const pickupTime = document.getElementById('wcPickupTime')?.value || '';
 
-  // Client-side validation
-  if (!name)    { alert('Please enter your full name.');        document.getElementById('guestName')?.focus();    return; }
-  if (!phone)   { alert('Please enter your contact number.');   document.getElementById('guestPhone')?.focus();   return; }
-  if (!address) { alert('Please enter your delivery address.'); document.getElementById('guestAddress')?.focus(); return; }
-  if (!time)    { alert('Please select a preferred delivery time.'); document.getElementById('guestTime')?.focus(); return; }
+  if (!pickupDate) { alert('Please select a pickup date.'); document.getElementById('wcPickupDate')?.focus(); return; }
+  if (!pickupTime) { alert('Please select a pickup time.'); document.getElementById('wcPickupTime')?.focus(); return; }
+  if (cart.weight <= 0) { alert('Please add at least ' + MIN_ORDER_KG + ' kg to your order.'); return; }
 
-  const w     = cart.weight;
-  const total = PRICE_PER_KG * w;
-
-  // Show loading state on the button
-  const btn = document.getElementById('checkoutBtn');
-  const originalText = btn.innerHTML;
+  const btn = document.getElementById('wcPlaceBtn');
+  const originalHTML = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing Order...';
 
-  // Build the POST payload
   const payload = new URLSearchParams();
-  payload.append('guest_name', name);
-  payload.append('guest_phone', phone);
-  payload.append('delivery_address', address);
-  payload.append('weight_kg', w);
+  payload.append('weight_kg', cart.weight);
   payload.append('price_per_kg', PRICE_PER_KG);
-  payload.append('delivery_time', time);
-  payload.append('preparation', prep);
-  payload.append('notes', notes);
+  payload.append('pickup_date', pickupDate);
+  payload.append('pickup_time', pickupTime);
 
   fetch('../logic/westcrays_process.php', {
     method: 'POST',
@@ -254,66 +269,55 @@ function placeOrder() {
   })
     .then(res => res.json())
     .then(data => {
-      btn.innerHTML = originalText;
-      if (btn.dataset.cartActive !== 'false') btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      updatePlaceBtn();
 
       if (!data.success) {
-        // Show server-side validation errors
-        const msg = data.errors ? data.errors.join('\n') : data.error;
+        const msg = data.errors ? data.errors.join('\n') : (data.error || 'Something went wrong.');
         alert(msg);
         return;
       }
 
-      // ── Show success ──
-      const successMsg = document.getElementById('successMsg');
+      const successMsg = document.getElementById('wcSuccessMsg');
       if (successMsg) {
-        let msg = `Order #${data.order_id} placed successfully! <strong>${data.weight_kg} kg</strong> Fresh Crayfish for <strong>${fmt(data.total)}</strong>.`;
-        msg += ` Delivered to <strong>${escapeHtml(data.address)}</strong> around <strong>${escapeHtml(data.delivery_time)}</strong>.`;
-        if (data.preparation) msg += ` Preparation: <strong>${escapeHtml(data.preparation)}</strong>.`;
-        msg += ` We'll contact you at <strong>${escapeHtml(data.phone)}</strong>.`;
-        if (data.notes) msg += ` <em>Note: ${escapeHtml(data.notes)}</em>`;
-        successMsg.innerHTML = msg;
+        successMsg.innerHTML = `Order #${data.order_id} placed! <strong>${data.weight_kg} kg</strong> of fresh crayfish for <strong>${fmt(data.total)}</strong>. Pick up on <strong>${data.pickup_date}</strong> during <strong>${data.pickup_time}</strong>. We'll have them harvested and packed live for you.`;
       }
 
-      const box = document.getElementById('successBox');
+      const box = document.getElementById('wcSuccess');
       if (box) { box.style.display = 'block'; box.scrollIntoView({ behavior: 'smooth' }); }
 
-      // Reset everything
+      // Reset
       cart.weight = 0;
       renderCart();
-      document.getElementById('guestAddress').value = '';
-      document.getElementById('guestNotes').value = '';
-      document.getElementById('guestTime').value = '';
-      document.getElementById('guestPrep').value = '';
-      if (!window.__isLoggedIn) {
-        document.getElementById('guestName').value = '';
-        document.getElementById('guestPhone').value = '';
-      }
+      document.getElementById('wcPickupDate').value = '';
+      document.getElementById('wcPickupTime').value = '';
 
-      setTimeout(() => { if (box) box.style.display = 'none'; }, 10000);
+      setTimeout(() => { if (box) box.style.display = 'none'; }, 15000);
     })
     .catch(err => {
-      btn.innerHTML = originalText;
-      if (btn.dataset.cartActive !== 'false') btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      updatePlaceBtn();
       console.error(err);
-      alert('Something went wrong. Please try again or call the resort.');
+      alert('Something went wrong. Please try again or call the resort directly.');
     });
 }
 
-// Nav dropdown handled by public_nav.js
-
-// ── Expose globals for inline onclick ──
-window.openModal          = openEditModal;
-window.closeModal         = closeModal;
-window.adjustEditQty      = adjustEditQty;
-window.saveEdit           = saveEdit;
-window.openDeleteModal    = openDeleteModal;
-window.closeDeleteModal   = closeDeleteModal;
-window.confirmDelete      = confirmDelete;
-window.openDeleteFromEdit = openDeleteFromEdit;
-window.placeOrder         = placeOrder;
-window.addToCart          = addToCart;
+// ── Expose globals ──
+window.setWeight        = setWeight;
+window.adjustWeight     = adjustWeight;
+window.addToCart        = addToCart;
+window.openDeleteModal  = openDeleteModal;
+window.closeDeleteModal = closeDeleteModal;
+window.confirmDelete    = confirmDelete;
+window.openEditModal    = openEditModal;
+window.closeEditModal   = closeEditModal;
+window.adjustEditQty    = adjustEditQty;
+window.saveEdit         = saveEdit;
+window.placeOrder       = placeOrder;
+window.openSignInModal  = openSignInModal;
+window.closeSignInModal = closeSignInModal;
+window.submitSignIn     = submitSignIn;
 
 // ── Init ──
-renderProduct();
+onWeightInput();
 renderCart();

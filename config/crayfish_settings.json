@@ -1,0 +1,7 @@
+{
+    "price_per_kg": 150,
+    "min_order_kg": 0.5,
+    "max_order_kg": 100,
+    "product_name": "Fresh Live Crayfish",
+    "is_active": true
+}

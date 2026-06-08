@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: May 15, 2026 at 02:51 AM
+-- Generation Time: Jun 08, 2026 at 01:55 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.30
 
@@ -37,6 +37,29 @@ CREATE TABLE `bookings` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `bookings`
+--
+
+INSERT INTO `bookings` (`booking_id`, `customer_id`, `booking_status_id`, `payment_status_id`, `total_amount`, `created_at`, `updated_at`) VALUES
+(2, 5, 1, 1, 75000.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `booking_cancellations`
+--
+
+CREATE TABLE `booking_cancellations` (
+  `cancellation_id` bigint UNSIGNED NOT NULL,
+  `booking_id` bigint UNSIGNED NOT NULL,
+  `reason_id` bigint UNSIGNED NOT NULL,
+  `cancelled_by_user_id` bigint UNSIGNED NOT NULL,
+  `refund_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `additional_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `cancelled_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- --------------------------------------------------------
 
 --
@@ -53,6 +76,13 @@ CREATE TABLE `booking_items` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `booking_items`
+--
+
+INSERT INTO `booking_items` (`booking_item_id`, `booking_id`, `facility_id`, `check_in_date`, `check_out_date`, `price_at_booking`, `created_at`, `updated_at`) VALUES
+(2, 2, 2, '2026-06-07 12:00:00', '2026-06-17 14:00:00', 7500.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28');
 
 -- --------------------------------------------------------
 
@@ -74,6 +104,30 @@ INSERT INTO `booking_statuses` (`booking_status_id`, `status_name`) VALUES
 (4, 'Completed'),
 (2, 'Confirmed'),
 (1, 'Pending');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cancellation_reasons`
+--
+
+CREATE TABLE `cancellation_reasons` (
+  `reason_id` bigint UNSIGNED NOT NULL,
+  `reason_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `cancellation_reasons`
+--
+
+INSERT INTO `cancellation_reasons` (`reason_id`, `reason_name`, `description`) VALUES
+(1, 'Change of Plans', 'I have a scheduling conflict and can no longer make these dates'),
+(2, 'Weather Conditions', 'I am unable to travel due to severe weather or natural events'),
+(3, 'Medical or Emergency', 'I have an unexpected health issue or family emergency'),
+(4, 'Transportation Issues', 'My flight was cancelled, or I have unexpected vehicle issues'),
+(5, 'Accidental Booking', 'I booked the wrong dates or the wrong accommodation by mistake'),
+(6, 'Other', 'Another reason not listed above');
 
 -- --------------------------------------------------------
 
@@ -104,6 +158,24 @@ INSERT INTO `categories` (`category_id`, `name`, `description`, `created_at`, `u
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `crayfish_orders`
+--
+
+CREATE TABLE `crayfish_orders` (
+  `order_id` bigint UNSIGNED NOT NULL,
+  `customer_id` bigint UNSIGNED NOT NULL,
+  `status_id` bigint UNSIGNED NOT NULL,
+  `quantity_kg` decimal(10,2) NOT NULL,
+  `price_per_kg` decimal(10,2) NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL,
+  `pickup_date` datetime DEFAULT NULL,
+  `ordered_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `facilities`
 --
 
@@ -119,6 +191,13 @@ CREATE TABLE `facilities` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `facilities`
+--
+
+INSERT INTO `facilities` (`facility_id`, `category_id`, `name`, `description`, `base_price`, `capacity`, `is_active`, `created_at`, `updated_at`) VALUES
+(2, 3, 'Private Villa 1', 'Sample', 7500.00, 4, 1, '2026-06-08 11:31:01', '2026-06-08 11:31:01');
+
 -- --------------------------------------------------------
 
 --
@@ -132,6 +211,36 @@ CREATE TABLE `facility_images` (
   `is_primary` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `facility_images`
+--
+
+INSERT INTO `facility_images` (`image_id`, `facility_id`, `image_path`, `is_primary`, `created_at`) VALUES
+(2, 2, 'uploads/facilities/facility_6a26a7f5e62cf1.01201861.jpg', 1, '2026-06-08 11:31:01');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `order_statuses`
+--
+
+CREATE TABLE `order_statuses` (
+  `status_id` bigint UNSIGNED NOT NULL,
+  `status_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `order_statuses`
+--
+
+INSERT INTO `order_statuses` (`status_id`, `status_name`, `description`) VALUES
+(1, 'Pending Order', 'Customer placed the order, waiting for farm confirmation.'),
+(2, 'Harvesting & Purging', 'Crayfish are being pulled from the pond and placed in clean water to purge.'),
+(3, 'Live & Packed', 'Crayfish are purged, weighed, packed, and ready for immediate pickup.'),
+(4, 'Completed', 'Customer has picked up their live crayfish.'),
+(5, 'Cancelled', 'The order was cancelled by the customer or the farm.');
 
 -- --------------------------------------------------------
 
@@ -166,7 +275,7 @@ CREATE TABLE `payment_methods` (
 --
 
 INSERT INTO `payment_methods` (`payment_method_id`, `method_name`, `description`, `is_active`) VALUES
-(1, 'Cash', 'Payment made in cash upon arrival or at the counter', 1),
+(1, 'Cash', 'Payment made in cash upon arrival or at the counter', 0),
 (2, 'GCash', 'Mobile wallet payment via GCash app', 1),
 (3, 'Maya', 'Mobile wallet payment via Maya app', 1),
 (4, 'MariBank (Formerly SeaBank)', NULL, 1);
@@ -217,7 +326,8 @@ INSERT INTO `users` (`user_id`, `user_type_id`, `user_status_id`, `email`, `pass
 (1, 1, 1, 'admin@westfarm.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, '2026-05-13 14:09:23', '2026-05-13 14:16:29'),
 (2, 2, 1, 'abiandilla2015@gmail.com', '$2y$10$dQTlUWNwvhV6Mg/Ng6xR2ef9RYSmyHifVODvJu.Fej3aDpcqVTMFu', NULL, '2026-05-13 14:54:28', '2026-05-13 15:06:31'),
 (3, 3, 1, 'raymundvalerios@gmail.com', '$2y$10$dQTlUWNwvhV6Mg/Ng6xR2ef9RYSmyHifVODvJu.Fej3aDpcqVTMFu', NULL, '2026-05-13 15:54:01', '2026-05-14 06:43:04'),
-(4, 2, 1, 'hazel@gmail.com', '$2y$10$iRo43dAouS78n4sDvUteMORk2r7OExF8xaTj1neTqAdgrBcT0j3Vm', NULL, '2026-05-14 06:47:08', '2026-05-14 06:47:08');
+(4, 2, 1, 'hazel@gmail.com', '$2y$10$iRo43dAouS78n4sDvUteMORk2r7OExF8xaTj1neTqAdgrBcT0j3Vm', NULL, '2026-05-14 06:47:08', '2026-05-14 06:47:08'),
+(5, 2, 1, 'relynnecayabyab@gmail.com', '$2y$10$0l2U.XlQ4SEj6xKlrupWh.A.Y24aYcsenCvLoxtGCkCaIOL6d9U3i', NULL, '2026-06-06 05:00:40', '2026-06-06 05:00:40');
 
 -- --------------------------------------------------------
 
@@ -244,7 +354,8 @@ INSERT INTO `user_profiles` (`profile_id`, `user_id`, `first_name`, `last_name`,
 (1, 1, 'System', 'Administrator', '09123456789', 'Westfarm Resort, Bayambang, Pangasinan', '2026-05-13 14:09:23', '2026-05-13 14:09:23'),
 (2, 2, 'Angelito', 'Biandilla', '09302070991', NULL, '2026-05-13 14:54:28', '2026-05-13 14:54:28'),
 (3, 3, 'Raymunds', 'Valerios', '09302070992', NULL, '2026-05-13 15:54:01', '2026-05-14 06:43:04'),
-(4, 4, 'Hazel', 'Dela Pena', NULL, NULL, '2026-05-14 06:47:08', '2026-05-14 06:47:08');
+(4, 4, 'Hazel', 'Dela Pena', NULL, NULL, '2026-05-14 06:47:08', '2026-05-14 06:47:08'),
+(5, 5, 'Relynne', 'Cayabyab', '09345345345', NULL, '2026-06-06 05:00:40', '2026-06-06 05:00:40');
 
 -- --------------------------------------------------------
 
@@ -302,6 +413,15 @@ ALTER TABLE `bookings`
   ADD KEY `fk_booking_payment_status` (`payment_status_id`);
 
 --
+-- Indexes for table `booking_cancellations`
+--
+ALTER TABLE `booking_cancellations`
+  ADD PRIMARY KEY (`cancellation_id`),
+  ADD UNIQUE KEY `uk_cancelled_booking` (`booking_id`),
+  ADD KEY `fk_cancellation_reason` (`reason_id`),
+  ADD KEY `fk_cancellation_user` (`cancelled_by_user_id`);
+
+--
 -- Indexes for table `booking_items`
 --
 ALTER TABLE `booking_items`
@@ -317,11 +437,26 @@ ALTER TABLE `booking_statuses`
   ADD UNIQUE KEY `status_name` (`status_name`);
 
 --
+-- Indexes for table `cancellation_reasons`
+--
+ALTER TABLE `cancellation_reasons`
+  ADD PRIMARY KEY (`reason_id`),
+  ADD UNIQUE KEY `reason_name` (`reason_name`);
+
+--
 -- Indexes for table `categories`
 --
 ALTER TABLE `categories`
   ADD PRIMARY KEY (`category_id`),
   ADD UNIQUE KEY `name` (`name`);
+
+--
+-- Indexes for table `crayfish_orders`
+--
+ALTER TABLE `crayfish_orders`
+  ADD PRIMARY KEY (`order_id`),
+  ADD KEY `fk_crayfish_customer` (`customer_id`),
+  ADD KEY `fk_crayfish_status` (`status_id`);
 
 --
 -- Indexes for table `facilities`
@@ -336,6 +471,13 @@ ALTER TABLE `facilities`
 ALTER TABLE `facility_images`
   ADD PRIMARY KEY (`image_id`),
   ADD KEY `fk_image_facility` (`facility_id`);
+
+--
+-- Indexes for table `order_statuses`
+--
+ALTER TABLE `order_statuses`
+  ADD PRIMARY KEY (`status_id`),
+  ADD UNIQUE KEY `status_name` (`status_name`);
 
 --
 -- Indexes for table `payments`
@@ -397,13 +539,19 @@ ALTER TABLE `user_types`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `booking_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `booking_cancellations`
+--
+ALTER TABLE `booking_cancellations`
+  MODIFY `cancellation_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `booking_items`
 --
 ALTER TABLE `booking_items`
-  MODIFY `booking_item_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `booking_item_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `booking_statuses`
@@ -412,28 +560,46 @@ ALTER TABLE `booking_statuses`
   MODIFY `booking_status_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT for table `cancellation_reasons`
+--
+ALTER TABLE `cancellation_reasons`
+  MODIFY `reason_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
   MODIFY `category_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
+-- AUTO_INCREMENT for table `crayfish_orders`
+--
+ALTER TABLE `crayfish_orders`
+  MODIFY `order_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `facilities`
 --
 ALTER TABLE `facilities`
-  MODIFY `facility_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `facility_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `facility_images`
 --
 ALTER TABLE `facility_images`
-  MODIFY `image_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `image_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `order_statuses`
+--
+ALTER TABLE `order_statuses`
+  MODIFY `status_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `payment_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `payment_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `payment_methods`
@@ -451,13 +617,13 @@ ALTER TABLE `payment_statuses`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `user_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `profile_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `profile_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `user_status`
@@ -484,11 +650,26 @@ ALTER TABLE `bookings`
   ADD CONSTRAINT `fk_booking_status` FOREIGN KEY (`booking_status_id`) REFERENCES `booking_statuses` (`booking_status_id`);
 
 --
+-- Constraints for table `booking_cancellations`
+--
+ALTER TABLE `booking_cancellations`
+  ADD CONSTRAINT `fk_cancel_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_cancel_reason` FOREIGN KEY (`reason_id`) REFERENCES `cancellation_reasons` (`reason_id`),
+  ADD CONSTRAINT `fk_cancel_user` FOREIGN KEY (`cancelled_by_user_id`) REFERENCES `users` (`user_id`);
+
+--
 -- Constraints for table `booking_items`
 --
 ALTER TABLE `booking_items`
   ADD CONSTRAINT `fk_item_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_item_facility` FOREIGN KEY (`facility_id`) REFERENCES `facilities` (`facility_id`);
+
+--
+-- Constraints for table `crayfish_orders`
+--
+ALTER TABLE `crayfish_orders`
+  ADD CONSTRAINT `fk_crayfish_customer` FOREIGN KEY (`customer_id`) REFERENCES `users` (`user_id`),
+  ADD CONSTRAINT `fk_crayfish_status` FOREIGN KEY (`status_id`) REFERENCES `order_statuses` (`status_id`);
 
 --
 -- Constraints for table `facilities`
