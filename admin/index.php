@@ -20,7 +20,7 @@ $total_customers = $pdo->query("SELECT COUNT(*) AS count FROM users WHERE user_t
 $total_owners = $pdo->query("SELECT COUNT(*) AS count FROM users WHERE user_type_id = 3")->fetch()['count'] ?? 0;
 $total_facilities = $pdo->query("SELECT COUNT(*) AS count FROM facilities")->fetch()['count'] ?? 0;
 $total_bookings = $pdo->query("SELECT COUNT(*) AS count FROM bookings")->fetch()['count'] ?? 0;
-$total_revenue = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) AS total_revenue FROM bookings")->fetch()['total_revenue'] ?? 0;
+$total_revenue = $pdo->query("SELECT COALESCE(SUM(b.total_amount), 0) AS total_revenue FROM bookings b JOIN booking_statuses bs ON b.booking_status_id = bs.booking_status_id WHERE bs.status_name NOT IN ('Cancelled')")->fetch()['total_revenue'] ?? 0;
 $total_categories = $pdo->query("SELECT COUNT(*) AS count FROM categories")->fetch()['count'] ?? 0;
 $total_payment_methods = $pdo->query("SELECT COUNT(*) AS count FROM payment_methods")->fetch()['count'] ?? 0;
 
@@ -39,7 +39,7 @@ $revenue_data = [];
 for ($i = 5; $i >= 0; $i--) {
     $month = date('Y-m', strtotime("-$i months"));
     $revenue_labels[] = date('M', strtotime("-$i months"));
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) AS revenue FROM bookings WHERE DATE_FORMAT(created_at, '%Y-%m') = ?");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(b.total_amount), 0) AS revenue FROM bookings b JOIN booking_statuses bs ON b.booking_status_id = bs.booking_status_id WHERE DATE_FORMAT(b.created_at, '%Y-%m') = ? AND bs.status_name NOT IN ('Cancelled')");
     $stmt->execute([$month]);
     $revenue_data[] = $stmt->fetch()['revenue'];
 }

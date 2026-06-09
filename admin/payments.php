@@ -177,6 +177,9 @@ $payments = $stmt->fetchAll();
                                                 <?php echo htmlspecialchars($payment['transaction_id']) ?: '<span style="color:#9ca3af;font-style:italic;">N/A (Cash)</span>'; ?>
                                             </td>
                                             <td style="text-align: right; white-space: nowrap;">
+                                                <a href="../pages/receipt.php?payment_id=<?php echo $payment['payment_id']; ?>" class="action-btn" title="View Receipt" style="color:var(--forest);border:1px solid var(--border);background:#f8faf5;padding:4px 8px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-right:4px;text-decoration:none;">
+                                                    <i class="fas fa-receipt"></i>
+                                                </a>
                                                 <button class="action-btn edit-btn" title="Edit Transaction ID"
                                                     data-id="<?php echo $payment['payment_id']; ?>"
                                                     data-trans="<?php echo htmlspecialchars($payment['transaction_id']); ?>">

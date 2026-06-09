@@ -182,6 +182,55 @@ $product_name = $cs['product_name'];
     </div>
   </section>
 
+  <!-- ═══ Payment ═══ -->
+  <section class="wc-pickup-section" id="wcPaymentSection">
+    <div class="wc-card">
+      <div class="wc-card-head"><h3><i class="fas fa-wallet"></i> Payment</h3></div>
+      <div class="wc-card-body">
+        <p class="wc-pickup-intro">Choose how you'd like to pay. You can pay now (full or partial) or pay later when picking up.</p>
+
+        <div class="wc-field" style="margin-bottom:16px;">
+          <label><i class="fas fa-check-circle"></i> Pay now?</label>
+          <div class="wc-pay-toggle" style="display:flex;gap:10px;margin-top:8px;">
+            <button type="button" id="wcPayNowBtn" class="wc-pay-toggle-btn" onclick="togglePayMode(true)" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);background:#fff;font-family:'Josefin Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s;">
+              <i class="fas fa-credit-card"></i> Pay Now
+            </button>
+            <button type="button" id="wcPayLaterBtn" class="wc-pay-toggle-btn active" onclick="togglePayMode(false)" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--forest);background:var(--forest);color:#fff;font-family:'Josefin Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s;">
+              <i class="fas fa-hand-holding-usd"></i> Pay Later
+            </button>
+          </div>
+        </div>
+
+        <div id="wcPayNowFields" style="display:none;">
+          <div class="wc-pickup-grid">
+            <div class="wc-field">
+              <label><i class="fas fa-university"></i> Payment Method <span class="wc-req">*</span></label>
+              <select id="wcPaymentMethod">
+                <option value="">Select method</option>
+                <?php
+                $pm_stmt = $pdo->query("SELECT method_name, description FROM payment_methods WHERE is_active = 1 ORDER BY payment_method_id");
+                foreach ($pm_stmt->fetchAll() as $pm): ?>
+                  <option value="<?php echo htmlspecialchars($pm['method_name']); ?>">
+                    <?php echo htmlspecialchars($pm['method_name']); ?>
+                    <?php if ($pm['description']) echo ' — ' . htmlspecialchars($pm['description']); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="wc-field">
+              <label><i class="fas fa-coins"></i> Amount to Pay <span class="wc-req">*</span></label>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input type="number" id="wcPayAmount" min="0" step="1" placeholder="Enter amount" style="flex:1;">
+                <button type="button" onclick="setFullPayment()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--forest);background:transparent;color:var(--forest);font-family:'Josefin Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;white-space:nowrap;">Pay Full</button>
+              </div>
+              <div id="wcPayAmountHint" style="font-size:11px;color:var(--text-soft);margin-top:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ Pickup Date ═══ -->
   <section class="wc-pickup-section">
     <div class="wc-card">
@@ -213,6 +262,7 @@ $product_name = $cs['product_name'];
     <div class="wc-success-ring"><i class="fas fa-check"></i></div>
     <h3>Order Placed Successfully!</h3>
     <p id="wcSuccessMsg">We'll prepare your crayfish shortly.</p>
+    <div id="wcSuccessActions" style="margin-top:16px;"></div>
   </div>
 
   <!-- ═══ Place Order ═══ -->
@@ -222,6 +272,121 @@ $product_name = $cs['product_name'];
     </button>
     <div class="wc-place-hint" id="wcPlaceHint"><i class="fas fa-info-circle"></i> Add at least 0.5 kg and select a pickup date to enable ordering.</div>
   </section>
+
+  <!-- ═══ My Orders (logged-in customers) ═══ -->
+  <?php if ($is_logged_in):
+    // Check if payment columns exist (migration may not have been run yet)
+    $has_payment_cols = false;
+    try {
+        $pdo->query("SELECT amount_paid FROM crayfish_orders LIMIT 1");
+        $has_payment_cols = true;
+    } catch (PDOException $e) {
+        $has_payment_cols = false;
+    }
+
+    if ($has_payment_cols) {
+        $stmt_my = $pdo->prepare("
+            SELECT co.order_id, co.quantity_kg, co.price_per_kg, co.total_amount,
+                   co.amount_paid, co.pickup_date, co.ordered_at,
+                   os.status_name AS order_status,
+                   ps.status_name AS payment_status,
+                   pm.method_name AS payment_method
+            FROM crayfish_orders co
+            JOIN order_statuses os ON co.status_id = os.status_id
+            JOIN payment_statuses ps ON co.payment_status_id = ps.payment_status_id
+            LEFT JOIN payment_methods pm ON co.payment_method_id = pm.payment_method_id
+            WHERE co.customer_id = ?
+            ORDER BY co.ordered_at DESC
+            LIMIT 20
+        ");
+    } else {
+        $stmt_my = $pdo->prepare("
+            SELECT co.order_id, co.quantity_kg, co.price_per_kg, co.total_amount,
+                   0 AS amount_paid, co.pickup_date, co.ordered_at,
+                   os.status_name AS order_status,
+                   'Unpaid' AS payment_status,
+                   NULL AS payment_method
+            FROM crayfish_orders co
+            JOIN order_statuses os ON co.status_id = os.status_id
+            WHERE co.customer_id = ?
+            ORDER BY co.ordered_at DESC
+            LIMIT 20
+        ");
+    }
+    $stmt_my->execute([$_SESSION['user_id']]);
+    $my_orders = $stmt_my->fetchAll();
+  ?>
+  <section class="wc-orders-section" style="margin-top:40px;">
+    <div class="wc-card">
+      <div class="wc-card-head"><h3><i class="fas fa-clipboard-list"></i> My Crayfish Orders</h3></div>
+      <div class="wc-card-body" style="padding:0;">
+        <?php if (empty($my_orders)): ?>
+          <div style="text-align:center;padding:2.5rem 1rem;color:#ccc;">
+            <i class="fas fa-inbox" style="font-size:36px;margin-bottom:10px;color:#e0e0e0;"></i>
+            <p style="font-size:13px;">No crayfish orders yet.</p>
+          </div>
+        <?php else: ?>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border);">
+                  <th style="padding:12px 14px;text-align:left;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Order</th>
+                  <th style="padding:12px 14px;text-align:left;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Weight</th>
+                  <th style="padding:12px 14px;text-align:left;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Total</th>
+                  <th style="padding:12px 14px;text-align:left;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Status</th>
+                  <th style="padding:12px 14px;text-align:left;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Payment</th>
+                  <th style="padding:12px 14px;text-align:right;font-family:'Josefin Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              <?php foreach ($my_orders as $mo):
+                $mo_remaining = $mo['total_amount'] - $mo['amount_paid'];
+                $badge_map = ['Pending Order' => '#fef3c7,#92400e', 'Harvesting & Purging' => '#ede9fe,#5b21b6', 'Live & Packed' => '#dbeafe,#1e40af', 'Completed' => '#dcfce7,#166534', 'Cancelled' => '#fee2e2,#991b1b'];
+                $badge_parts = explode(',', ($badge_map[$mo['order_status']] ?? '#f3f4f4,#374151'));
+              ?>
+                <tr style="border-bottom:1px solid #f5f5f5;">
+                  <td style="padding:14px;">
+                    <strong style="font-family:'Josefin Sans',sans-serif;color:#2F3D2E;">#<?php echo $mo['order_id']; ?></strong><br>
+                    <span style="font-size:11px;color:#999;"><?php echo date('M d, Y', strtotime($mo['ordered_at'])); ?></span>
+                  </td>
+                  <td style="padding:14px;font-size:13px;"><strong><?php echo number_format($mo['quantity_kg'], 1); ?> kg</strong></td>
+                  <td style="padding:14px;font-size:13px;">
+                    <strong>₱<?php echo number_format($mo['total_amount'], 0); ?></strong>
+                    <?php if ($mo['amount_paid'] > 0): ?><br><span style="font-size:11px;color:var(--green);">Paid: ₱<?php echo number_format($mo['amount_paid'], 0); ?></span><?php endif; ?>
+                    <?php if ($mo_remaining > 0 && $mo['order_status'] !== 'Cancelled'): ?><br><span style="font-size:11px;color:var(--red);">Bal: ₱<?php echo number_format($mo_remaining, 0); ?></span><?php endif; ?>
+                  </td>
+                  <td style="padding:14px;"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-family:'Josefin Sans',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:<?php echo $badge_parts[0]; ?>;color:<?php echo $badge_parts[1]; ?>;"><?php echo htmlspecialchars($mo['order_status']); ?></span></td>
+                  <td style="padding:14px;">
+                    <span style="font-size:12px;font-weight:600;color:<?php echo $mo['payment_status'] === 'Paid' ? 'var(--green)' : ($mo['payment_status'] === 'Partial' ? '#d97706' : 'var(--red)'); ?>;"><?php echo htmlspecialchars($mo['payment_status']); ?></span>
+                    <?php if ($mo['payment_method']): ?><br><span style="font-size:11px;color:#999;"><?php echo htmlspecialchars($mo['payment_method']); ?></span><?php endif; ?>
+                  </td>
+                  <td style="padding:14px;text-align:right;white-space:nowrap;">
+                    <a href="../pages/crayfish_receipt.php?order_id=<?php echo $mo['order_id']; ?>" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:50px;border:1px solid var(--border);background:transparent;font-family:'Josefin Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--text-soft);text-decoration:none;transition:all .2s;margin-bottom:4px;">
+                      <i class="fas fa-receipt"></i> Receipt
+                    </a>
+                    <?php if ($mo['order_status'] === 'Pending Order' || $mo['order_status'] === 'Harvesting & Purging'): ?>
+                      <?php if ($mo_remaining > 0): ?>
+                        <br>
+                        <button type="button" onclick="openPayModal(<?php echo $mo['order_id']; ?>, <?php echo $mo_remaining; ?>)" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:50px;border:none;background:var(--forest);color:#fff;font-family:'Josefin Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:4px;">
+                          <i class="fas fa-credit-card"></i> Pay
+                        </button>
+                      <?php endif; ?>
+                      <br>
+                      <button type="button" onclick="cancelOrder(<?php echo $mo['order_id']; ?>)" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:50px;border:1px solid #fecaca;background:#fef2f2;font-family:'Josefin Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--red);">
+                        <i class="fas fa-ban"></i> Cancel
+                      </button>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
 
 </div>
 
@@ -290,6 +455,43 @@ $product_name = $cs['product_name'];
       <i class="fas fa-sign-in-alt"></i> Sign In
     </button>
     <p style="font-size:12px;color:#bbb;text-align:center;margin-top:14px;">Don't have an account? <a href="../pages/register.php" style="color:var(--forest);font-weight:600;text-decoration:none;">Create Account</a></p>
+  </div>
+</div>
+
+<!-- ═══ Pay Modal (for existing orders) ═══ -->
+<div id="payModalBg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closePayModal();">
+  <div style="background:#fff; border-radius:10px; width:100%; max-width:440px; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #eee;">
+      <h3 style="margin:0; font-family:'Josefin Sans',sans-serif; font-size:16px; font-weight:700; color:#1a3a1a;"><i class="fas fa-credit-card"></i> Make Payment</h3>
+      <button type="button" onclick="closePayModal()" style="background:none; border:none; font-size:22px; color:#999; cursor:pointer; line-height:1; padding:0;">&times;</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="background:#f9fafb; padding:12px; border-radius:8px; margin-bottom:16px; border:1px solid #e5e7eb;">
+        <p style="margin:0 0 4px 0; font-size:13px; color:#6b7280;">Order #<strong id="payModalOrderId"></strong></p>
+        <p style="margin:0; font-size:13px; color:#6b7280;">Remaining balance: <strong id="payModalRemaining" style="color:#2F3D2E;"></strong></p>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block; margin-bottom:5px; font-weight:500;">Payment Method <span style="color:#dc2626;">*</span></label>
+        <select id="payModalMethod" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-family:'Lora',serif; font-size:14px;">
+          <option value="">Select method</option>
+          <?php
+          $pm_stmt2 = $pdo->query("SELECT method_name FROM payment_methods WHERE is_active = 1 ORDER BY payment_method_id");
+          foreach ($pm_stmt2->fetchAll() as $pm): ?>
+            <option value="<?php echo htmlspecialchars($pm['method_name']); ?>"><?php echo htmlspecialchars($pm['method_name']); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="display:block; margin-bottom:5px; font-weight:500;">Amount (₱) <span style="color:#dc2626;">*</span></label>
+        <input type="number" id="payModalAmount" min="1" step="1" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-family:'Lora',serif; font-size:14px;">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid #eee; background:#fafafa;">
+      <button type="button" onclick="closePayModal()" style="background:#e5e7eb; color:#374151; border:none; border-radius:8px; padding:10px 24px; font-family:'Josefin Sans',sans-serif; font-weight:700; font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+      <button type="button" id="payModalSubmitBtn" onclick="submitPayModal()" style="background:#c0392b; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-family:'Josefin Sans',sans-serif; font-weight:700; font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;">
+        <i class="fas fa-lock"></i> Confirm Payment
+      </button>
+    </div>
   </div>
 </div>
 

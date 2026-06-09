@@ -12,6 +12,9 @@ $user_id = $_SESSION['user_id'];
 // Load payment methods
 $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY payment_method_id")->fetchAll();
 
+// Load cancellation reasons
+$cancellation_reasons = $pdo->query("SELECT reason_id, reason_name, description FROM cancellation_reasons ORDER BY reason_id")->fetchAll();
+
 // If a specific booking_id is provided, show payment form for it
 $selected_booking = null;
 $selected_id = isset($_GET['booking_id']) ? (int)$_GET['booking_id'] : 0;
@@ -39,7 +42,9 @@ $stmt = $pdo->prepare(
             bs.status_name AS booking_status, ps.status_name AS payment_status,
             f.name AS facility_name, f.base_price,
             bi.check_in_date, bi.check_out_date,
-            (SELECT COALESCE(SUM(amount_paid), 0) FROM payments WHERE booking_id = b.booking_id) AS paid_so_far
+            (SELECT COALESCE(SUM(amount_paid), 0) FROM payments WHERE booking_id = b.booking_id) AS paid_so_far,
+            (SELECT p2.payment_id FROM payments p2 WHERE p2.booking_id = b.booking_id ORDER BY p2.payment_date DESC LIMIT 1) AS latest_payment_id,
+            (SELECT bc.cancellation_id FROM booking_cancellations bc WHERE bc.booking_id = b.booking_id ORDER BY bc.cancelled_at DESC LIMIT 1) AS cancellation_id
      FROM bookings b
      JOIN booking_items bi ON b.booking_id = bi.booking_id
      JOIN facilities f ON bi.facility_id = f.facility_id
@@ -55,20 +60,33 @@ $all_bookings = $stmt->fetchAll();
 // Flash messages
 $success_msg = '';
 $error_msg = '';
-if (isset($_GET['success']) && $_GET['success'] === 'payment_complete') {
-    $success_msg = 'Payment processed successfully! Thank you for your payment.';
+$receipt_payment_id = 0;
+if (isset($_GET['success'])) {
+    if ($_GET['success'] === 'payment_complete') {
+        $success_msg = 'Payment processed successfully! Thank you for your payment.';
+        // Get the latest payment_id for this customer's most recent booking for receipt link
+        $stmt_r = $pdo->prepare("SELECT p.payment_id FROM payments p JOIN bookings b ON p.booking_id = b.booking_id WHERE b.customer_id = ? ORDER BY p.payment_date DESC LIMIT 1");
+        $stmt_r->execute([$user_id]);
+        $r = $stmt_r->fetch();
+        if ($r) $receipt_payment_id = $r['payment_id'];
+    } elseif ($_GET['success'] === 'booking_cancelled') {
+        $success_msg = 'Your booking has been cancelled successfully.';
+    }
 }
 if (isset($_GET['error'])) {
     $errors = [
-        'not_logged_in'    => 'Please sign in to make a payment.',
-        'invalid_booking'  => 'Invalid booking selected.',
-        'booking_not_found'=> 'Booking not found or does not belong to your account.',
-        'invalid_method'   => 'Please select a valid payment method.',
-        'already_paid'     => 'This booking has already been fully paid.',
-        'refunded'         => 'This booking has been refunded and cannot be paid.',
-        'invalid_amount'   => 'Please enter a valid payment amount.',
-        'amount_exceeds'   => 'Payment amount cannot exceed the total booking amount.',
-        'system_error'     => 'An error occurred processing your payment. Please try again.',
+        'not_logged_in'      => 'Please sign in to make a payment.',
+        'invalid_booking'    => 'Invalid booking selected.',
+        'booking_not_found'  => 'Booking not found or does not belong to your account.',
+        'invalid_method'     => 'Please select a valid payment method.',
+        'already_paid'       => 'This booking has already been fully paid.',
+        'refunded'           => 'This booking has been refunded and cannot be paid.',
+        'invalid_amount'     => 'Please enter a valid payment amount.',
+        'amount_exceeds'     => 'Payment amount cannot exceed the total booking amount.',
+        'system_error'       => 'An error occurred processing your payment. Please try again.',
+        'already_completed'  => 'This booking has already been completed and cannot be cancelled.',
+        'already_cancelled'  => 'This booking has already been cancelled.',
+        'cancel_failed'      => 'Unable to cancel booking. Please try again.',
     ];
     $error_msg = $errors[$_GET['error']] ?? 'An error occurred.';
 }
@@ -116,7 +134,14 @@ if (isset($_GET['error'])) {
 <div class="cust-container">
 
     <?php if ($success_msg): ?>
-        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_msg); ?></div>
+        <div class="alert alert-success" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <span><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_msg); ?></span>
+            <?php if ($receipt_payment_id): ?>
+                <a href="../pages/receipt.php?payment_id=<?php echo $receipt_payment_id; ?>" class="btn btn-sm" style="background:var(--forest);color:#fff;border:none;padding:6px 16px;border-radius:20px;font-family:'Josefin Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                    <i class="fas fa-receipt"></i> View Receipt
+                </a>
+            <?php endif; ?>
+        </div>
     <?php elseif ($error_msg): ?>
         <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_msg); ?></div>
     <?php endif; ?>
@@ -291,14 +316,66 @@ if (isset($_GET['error'])) {
                             <td><span class="pill pill-<?php echo strtolower($b['booking_status']); ?>"><?php echo $b['booking_status']; ?></span></td>
                             <td><span class="pill pill-<?php echo strtolower($b['payment_status']); ?>"><?php echo $b['payment_status']; ?></span></td>
                             <td>
-                                <?php if ($b['payment_status'] !== 'Paid' && $b['booking_status'] !== 'Cancelled'): ?>
-                                    <a href="payment_booking.php?booking_id=<?php echo $b['booking_id']; ?>" class="btn btn-sm btn-gold">
-                                        <i class="fas fa-credit-card"></i> Pay
-                                    </a>
+                                <?php if ($b['booking_status'] === 'Cancelled'): ?>
+                                    <?php if (!empty($b['cancellation_id'])): ?>
+                                        <a href="../pages/refund_receipt.php?cancellation_id=<?php echo (int)$b['cancellation_id']; ?>" class="btn btn-sm btn-outline" style="margin-bottom:4px;color:var(--red);border-color:#fecaca;">
+                                            <i class="fas fa-file-invoice-dollar"></i> Refund Receipt
+                                        </a><br>
+                                    <?php endif; ?>
+                                    <span style="font-size: 0.75rem; color: var(--red);"><i class="fas fa-ban"></i> Cancelled</span>
+                                <?php elseif ($b['booking_status'] === 'Completed'): ?>
+                                    <?php if ($b['latest_payment_id']): ?>
+                                        <a href="../pages/receipt.php?payment_id=<?php echo $b['latest_payment_id']; ?>" class="btn btn-sm btn-outline" style="margin-bottom:4px;">
+                                            <i class="fas fa-receipt"></i> Receipt
+                                        </a><br>
+                                    <?php endif; ?>
+                                    <span style="font-size: 0.75rem; color: var(--green);"><i class="fas fa-check-circle"></i> Completed</span>
                                 <?php elseif ($b['payment_status'] === 'Paid'): ?>
-                                    <span style="font-size: 0.75rem; color: var(--green);"><i class="fas fa-check-circle"></i> Settled</span>
+                                    <?php if ($b['latest_payment_id']): ?>
+                                        <a href="../pages/receipt.php?payment_id=<?php echo $b['latest_payment_id']; ?>" class="btn btn-sm btn-outline" style="margin-bottom:4px;">
+                                            <i class="fas fa-receipt"></i> Receipt
+                                        </a><br>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-sm btn-outline cancel-booking-btn"
+                                            style="color:var(--red);border-color:#fecaca;background:#fef2f2;"
+                                            data-booking-id="<?php echo $b['booking_id']; ?>"
+                                            data-facility="<?php echo htmlspecialchars($b['facility_name']); ?>"
+                                            data-dates="<?php echo date('M d', strtotime($b['check_in_date'])); ?> – <?php echo date('M d, Y', strtotime($b['check_out_date'])); ?>"
+                                            data-amount="<?php echo number_format($b['total_amount'], 0); ?>"
+                                            data-paid="<?php echo number_format($b['paid_so_far'], 0); ?>">
+                                        <i class="fas fa-ban"></i> Cancel
+                                    </button>
+                                <?php elseif ($b['paid_so_far'] > 0): ?>
+                                    <?php if ($b['latest_payment_id']): ?>
+                                        <a href="../pages/receipt.php?payment_id=<?php echo $b['latest_payment_id']; ?>" class="btn btn-sm btn-outline" style="margin-bottom:4px;">
+                                            <i class="fas fa-receipt"></i> Receipt
+                                        </a><br>
+                                    <?php endif; ?>
+                                    <a href="payment_booking.php?booking_id=<?php echo $b['booking_id']; ?>" class="btn btn-sm btn-gold" style="margin-bottom:4px;">
+                                        <i class="fas fa-credit-card"></i> Pay
+                                    </a><br>
+                                    <button type="button" class="btn btn-sm btn-outline cancel-booking-btn"
+                                            style="color:var(--red);border-color:#fecaca;background:#fef2f2;"
+                                            data-booking-id="<?php echo $b['booking_id']; ?>"
+                                            data-facility="<?php echo htmlspecialchars($b['facility_name']); ?>"
+                                            data-dates="<?php echo date('M d', strtotime($b['check_in_date'])); ?> – <?php echo date('M d, Y', strtotime($b['check_out_date'])); ?>"
+                                            data-amount="<?php echo number_format($b['total_amount'], 0); ?>"
+                                            data-paid="<?php echo number_format($b['paid_so_far'], 0); ?>">
+                                        <i class="fas fa-ban"></i> Cancel
+                                    </button>
                                 <?php else: ?>
-                                    <span style="font-size: 0.75rem; color: var(--muted);">—</span>
+                                    <a href="payment_booking.php?booking_id=<?php echo $b['booking_id']; ?>" class="btn btn-sm btn-gold" style="margin-bottom:4px;">
+                                        <i class="fas fa-credit-card"></i> Pay
+                                    </a><br>
+                                    <button type="button" class="btn btn-sm btn-outline cancel-booking-btn"
+                                            style="color:var(--red);border-color:#fecaca;background:#fef2f2;"
+                                            data-booking-id="<?php echo $b['booking_id']; ?>"
+                                            data-facility="<?php echo htmlspecialchars($b['facility_name']); ?>"
+                                            data-dates="<?php echo date('M d', strtotime($b['check_in_date'])); ?> – <?php echo date('M d, Y', strtotime($b['check_out_date'])); ?>"
+                                            data-amount="<?php echo number_format($b['total_amount'], 0); ?>"
+                                            data-paid="0">
+                                        <i class="fas fa-ban"></i> Cancel
+                                    </button>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -309,6 +386,71 @@ if (isset($_GET['error'])) {
         </div>
     </div>
 
+</div>
+
+<!-- Cancel Booking Modal -->
+<div id="cancelBookingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:10px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #eee;">
+            <h3 style="margin:0; font-family:'Josefin Sans',sans-serif; font-size:16px; font-weight:700; color:#1a3a1a;">Cancel Booking</h3>
+            <button type="button" onclick="document.getElementById('cancelBookingModal').style.display='none';" style="background:none; border:none; font-size:22px; color:#999; cursor:pointer; line-height:1; padding:0;">&times;</button>
+        </div>
+        <form action="../logic/cancel_booking_process.php" method="POST" id="cancelBookingForm">
+            <div style="padding:20px;">
+                <input type="hidden" name="booking_id" id="cancel_booking_id" value=""/>
+
+                <!-- Booking Summary -->
+                <div style="background:#f9fafb; padding:12px; border-radius:8px; margin-bottom:16px; border:1px solid #e5e7eb;">
+                    <p style="margin:0 0 4px 0; font-size:13px; color:#6b7280;">Booking Summary</p>
+                    <p style="margin:0; font-weight:600; color:#2F3D2E;" id="cancel_booking_label"></p>
+                    <p style="margin:2px 0 0 0; font-size:13px; color:#6b7280;" id="cancel_booking_dates"></p>
+                    <div style="display:flex; gap:24px; margin-top:8px; font-size:13px;">
+                        <span style="color:#6b7280;">Total: <strong id="cancel_booking_amount" style="color:#2F3D2E;"></strong></span>
+                        <span style="color:#6b7280;">Paid: <strong id="cancel_booking_paid" style="color:#16a34a;"></strong></span>
+                    </div>
+                </div>
+
+                <!-- Refund notice (shown when customer has paid) -->
+                <div id="cancel_refund_warning" style="display:none; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:12px; margin-bottom:16px;">
+                    <p style="margin:0; font-size:13px; color:#92400e; line-height:1.5;">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Refund Notice:</strong> Since you have already paid, the paid amount will be marked as <strong>refunded</strong> and a refund receipt will be generated. Please contact the resort to arrange your refund.
+                    </p>
+                </div>
+
+                <!-- No-refund info (shown when nothing was paid) -->
+                <div id="cancel_no_refund_info" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-bottom:16px;">
+                    <p style="margin:0; font-size:13px; color:#166534; line-height:1.5;">
+                        <i class="fas fa-info-circle"></i> <strong>No refund needed:</strong> This booking has no payments, so no refund will be processed.
+                    </p>
+                </div>
+
+                <h4 style="margin:0 0 10px 0; color:#2F3D2E; border-bottom:1px solid #eee; padding-bottom:5px;">Cancellation Details</h4>
+
+                <div style="margin-bottom:10px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:500;">Reason <span style="color:#dc2626;">*</span></label>
+                    <select name="reason_id" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-family:'Lora',serif; font-size:14px;">
+                        <option value="">-- Select a reason --</option>
+                        <?php foreach ($cancellation_reasons as $reason): ?>
+                            <option value="<?php echo $reason['reason_id']; ?>"><?php echo htmlspecialchars($reason['reason_name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display:block; margin-bottom:5px; font-weight:500;">Additional Notes <span style="color:#9ca3af; font-weight:400;">(optional)</span></label>
+                    <textarea name="notes" rows="2" placeholder="Any additional details..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; resize:vertical; font-family:'Lora',serif; font-size:14px;"></textarea>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div style="display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid #eee; background:#fafafa;">
+                <button type="button" onclick="document.getElementById('cancelBookingModal').style.display='none';" style="background:#e5e7eb; color:#374151; border:none; border-radius:8px; padding:10px 24px; font-family:'Josefin Sans',sans-serif; font-weight:700; font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;">Keep Booking</button>
+                <button type="submit" id="cancelSubmitBtn" style="background:#c0392b; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-family:'Josefin Sans',sans-serif; font-weight:700; font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;">
+                    <i class="fas fa-ban"></i> Cancel Booking
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- FOOTER -->
@@ -378,6 +520,51 @@ document.getElementById('paymentForm')?.addEventListener('submit', function(e) {
     document.getElementById('payBtn').disabled = true;
     document.getElementById('payBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 });
+
+// ── Cancel Booking Modal ──────────────────────────────────────
+(function() {
+    var cancelModal = document.getElementById('cancelBookingModal');
+    if (!cancelModal) return;
+
+    // Open modal
+    document.querySelectorAll('.cancel-booking-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var d = this.dataset;
+            var paidVal = parseFloat(d.paid.replace(/,/g, '')) || 0;
+
+            document.getElementById('cancel_booking_id').value = d.bookingId;
+            document.getElementById('cancel_booking_label').textContent = 'Booking #' + d.bookingId + ' (' + d.facility + ')';
+            document.getElementById('cancel_booking_dates').textContent = d.dates;
+            document.getElementById('cancel_booking_amount').textContent = '₱' + d.amount;
+            document.getElementById('cancel_booking_paid').textContent = '₱' + d.paid;
+
+            document.getElementById('cancel_refund_warning').style.display = paidVal > 0 ? 'block' : 'none';
+            document.getElementById('cancel_no_refund_info').style.display = paidVal > 0 ? 'none' : 'block';
+
+            document.getElementById('cancelBookingForm').reset();
+            document.getElementById('cancel_booking_id').value = d.bookingId;
+
+            cancelModal.style.display = 'flex';
+        });
+    });
+
+    // Close modal on overlay click (outside the modal panel)
+    cancelModal.addEventListener('click', function(e) {
+        if (e.target === cancelModal) {
+            cancelModal.style.display = 'none';
+        }
+    });
+
+    // Loading state on submit
+    var cancelForm = document.getElementById('cancelBookingForm');
+    if (cancelForm) {
+        cancelForm.addEventListener('submit', function() {
+            var btn = document.getElementById('cancelSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        });
+    }
+})();
 </script>
 
 </body>

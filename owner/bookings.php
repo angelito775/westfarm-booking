@@ -26,7 +26,8 @@ if (!empty($facility_ids)) {
         "SELECT b.booking_id, up.first_name, up.last_name, up.phone_number,
                 f.name AS facility_name, bi.check_in_date, bi.check_out_date,
                 b.total_amount, b.booking_status_id, bs.status_name,
-                ps.status_name AS payment_status_name, b.created_at
+                ps.status_name AS payment_status_name, b.created_at,
+                (SELECT p2.payment_id FROM payments p2 WHERE p2.booking_id = b.booking_id ORDER BY p2.payment_date DESC LIMIT 1) AS latest_payment_id
          FROM bookings b
          JOIN booking_items bi ON b.booking_id = bi.booking_id
          JOIN facilities f ON bi.facility_id = f.facility_id
@@ -172,7 +173,8 @@ if (!empty($facility_ids)) {
                                                 data-check-out-raw="<?php echo date('Y-m-d', strtotime($booking['check_out_date'])); ?>"
                                                 data-amount="<?php echo number_format($booking['total_amount'], 0); ?>"
                                                 data-booking-status="<?php echo htmlspecialchars($booking['status_name']); ?>"
-                                                data-payment-status="<?php echo htmlspecialchars($booking['payment_status_name']); ?>">
+                                                data-payment-status="<?php echo htmlspecialchars($booking['payment_status_name']); ?>"
+                                                data-payment-id="<?php echo (int)($booking['latest_payment_id'] ?? 0); ?>">
                                                 <td><span class="booking-id">#<?php echo htmlspecialchars($booking['booking_id']); ?></span></td>
                                                 <td><?php echo htmlspecialchars(($booking['first_name'] ?? '') . ' ' . ($booking['last_name'] ?? '')); ?></td>
                                                 <td><?php echo htmlspecialchars($booking['facility_name']); ?></td>
@@ -181,6 +183,11 @@ if (!empty($facility_ids)) {
                                                 <td><span class="status-pill payment-<?php echo strtolower($booking['payment_status_name']); ?>"><?php echo htmlspecialchars($booking['payment_status_name']); ?></span></td>
                                                 <td style="text-align: right;">
                                                     <span class="status-pill <?php echo strtolower(str_replace(' ', '-', $booking['status_name'])); ?>" style="margin-right: 8px;"><?php echo htmlspecialchars($booking['status_name']); ?></span>
+                                                    <?php if (!empty($booking['latest_payment_id'])): ?>
+                                                        <a href="../pages/receipt.php?payment_id=<?php echo (int)$booking['latest_payment_id']; ?>" class="action-btn" title="View Receipt" style="color:#16a34a;border:1px solid #bbf7d0;background:#f0fdf4;padding:4px 8px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-right:4px;text-decoration:none;">
+                                                            <i class="fas fa-receipt"></i>
+                                                        </a>
+                                                    <?php endif; ?>
                                                     <button class="action-btn edit-booking-btn" title="Edit Booking" style="color: #3b82f6; border: 1px solid #bfdbfe; background: #eff6ff; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
                                                         <i class="fas fa-pencil-alt"></i>
                                                     </button>

@@ -242,6 +242,53 @@ function submitSignIn() {
   form.submit();
 }
 
+// ── Payment mode toggle ──
+let payNowMode = false;
+
+function togglePayMode(payNow) {
+  payNowMode = payNow;
+  const nowBtn = document.getElementById('wcPayNowBtn');
+  const laterBtn = document.getElementById('wcPayLaterBtn');
+  const fields = document.getElementById('wcPayNowFields');
+
+  if (payNow) {
+    nowBtn.style.borderColor = 'var(--forest)';
+    nowBtn.style.background = 'var(--forest)';
+    nowBtn.style.color = '#fff';
+    laterBtn.style.borderColor = 'var(--border)';
+    laterBtn.style.background = '#fff';
+    laterBtn.style.color = 'var(--forest)';
+    if (fields) fields.style.display = 'block';
+  } else {
+    laterBtn.style.borderColor = 'var(--forest)';
+    laterBtn.style.background = 'var(--forest)';
+    laterBtn.style.color = '#fff';
+    nowBtn.style.borderColor = 'var(--border)';
+    nowBtn.style.background = '#fff';
+    nowBtn.style.color = 'var(--forest)';
+    if (fields) fields.display = 'none';
+  }
+  updatePayAmountHint();
+}
+
+function setFullPayment() {
+  const total = PRICE_PER_KG * cart.weight;
+  const inp = document.getElementById('wcPayAmount');
+  if (inp) inp.value = total.toFixed(0);
+  updatePayAmountHint();
+}
+
+function updatePayAmountHint() {
+  const hint = document.getElementById('wcPayAmountHint');
+  if (!hint) return;
+  if (cart.weight > 0) {
+    const total = PRICE_PER_KG * cart.weight;
+    hint.textContent = 'Total: ' + fmt(total) + ' — enter any amount up to full total for partial payment.';
+  } else {
+    hint.textContent = '';
+  }
+}
+
 // ── Place Order (AJAX) ──
 function placeOrder() {
   const pickupDate = document.getElementById('wcPickupDate')?.value || '';
@@ -250,6 +297,18 @@ function placeOrder() {
   if (!pickupDate) { alert('Please select a pickup date.'); document.getElementById('wcPickupDate')?.focus(); return; }
   if (!pickupTime) { alert('Please select a pickup time.'); document.getElementById('wcPickupTime')?.focus(); return; }
   if (cart.weight <= 0) { alert('Please add at least ' + MIN_ORDER_KG + ' kg to your order.'); return; }
+
+  // Validate payment fields if paying now
+  let payMethod = '';
+  let payAmount = 0;
+  if (payNowMode) {
+    payMethod = document.getElementById('wcPaymentMethod')?.value || '';
+    payAmount = parseFloat(document.getElementById('wcPayAmount')?.value) || 0;
+    if (!payMethod) { alert('Please select a payment method.'); return; }
+    if (payAmount <= 0) { alert('Please enter a payment amount.'); return; }
+    const total = PRICE_PER_KG * cart.weight;
+    if (payAmount > total) { payAmount = total; }
+  }
 
   const btn = document.getElementById('wcPlaceBtn');
   const originalHTML = btn.innerHTML;
@@ -261,6 +320,11 @@ function placeOrder() {
   payload.append('price_per_kg', PRICE_PER_KG);
   payload.append('pickup_date', pickupDate);
   payload.append('pickup_time', pickupTime);
+  if (payNowMode) {
+    payload.append('pay_now', '1');
+    payload.append('payment_method', payMethod);
+    payload.append('amount_paid', payAmount);
+  }
 
   fetch('../logic/westcrays_process.php', {
     method: 'POST',
@@ -279,8 +343,20 @@ function placeOrder() {
       }
 
       const successMsg = document.getElementById('wcSuccessMsg');
+      const successActions = document.getElementById('wcSuccessActions');
       if (successMsg) {
-        successMsg.innerHTML = `Order #${data.order_id} placed! <strong>${data.weight_kg} kg</strong> of fresh crayfish for <strong>${fmt(data.total)}</strong>. Pick up on <strong>${data.pickup_date}</strong> during <strong>${data.pickup_time}</strong>. We'll have them harvested and packed live for you.`;
+        let msg = `Order #${data.order_id} placed! <strong>${data.weight_kg} kg</strong> of fresh crayfish for <strong>${fmt(data.total)}</strong>.`;
+        if (data.payment_status === 'Paid') {
+          msg += ' <strong style="color:var(--green);">Payment received!</strong>';
+        } else if (data.payment_status === 'Partial') {
+          msg += ' Partial payment of <strong>' + fmt(data.amount_paid) + '</strong> received. Remaining: <strong>' + fmt(data.remaining) + '</strong>.';
+        } else {
+          msg += ' Payment due on pickup.';
+        }
+        successMsg.innerHTML = msg;
+      }
+      if (successActions) {
+        successActions.innerHTML = `<a href="../pages/crayfish_receipt.php?order_id=${data.order_id}" class="wc-btn-primary" style="margin-top:12px;display:inline-flex;"><i class="fas fa-receipt"></i> View Receipt</a>`;
       }
 
       const box = document.getElementById('wcSuccess');
@@ -291,14 +367,110 @@ function placeOrder() {
       renderCart();
       document.getElementById('wcPickupDate').value = '';
       document.getElementById('wcPickupTime').value = '';
+      document.getElementById('wcPaymentMethod').value = '';
+      document.getElementById('wcPayAmount').value = '';
+      togglePayMode(false);
 
-      setTimeout(() => { if (box) box.style.display = 'none'; }, 15000);
+      setTimeout(() => { if (box) box.style.display = 'none'; }, 20000);
     })
     .catch(err => {
       btn.innerHTML = originalHTML;
       updatePlaceBtn();
       console.error(err);
       alert('Something went wrong. Please try again or call the resort directly.');
+    });
+}
+
+// ── Cancel Order ──
+function cancelOrder(orderId) {
+  if (!confirm('Are you sure you want to cancel order #' + orderId + '? Any payment made will be marked as refunded.')) return;
+
+  const payload = new URLSearchParams();
+  payload.append('action', 'cancel_order');
+  payload.append('order_id', orderId);
+
+  fetch('../logic/crayfish_payment_process.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: payload.toString()
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        alert(data.error || 'Cancellation failed.');
+        return;
+      }
+      if (data.refund_amount > 0) {
+        alert('Order #' + order_id + ' cancelled. Refund amount: ₱' + parseFloat(data.refund_amount).toLocaleString(undefined, {minimumFractionDigits: 2}) + '. Please contact the resort to arrange your refund.');
+      } else {
+        alert('Order #' + orderId + ' cancelled successfully.');
+      }
+      location.reload();
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Something went wrong. Please try again.');
+    });
+}
+
+// ── Pay Modal (for existing orders) ──
+let payModalOrderId = 0;
+let payModalRemaining = 0;
+
+function openPayModal(orderId, remaining) {
+  payModalOrderId = orderId;
+  payModalRemaining = remaining;
+  document.getElementById('payModalOrderId').textContent = orderId;
+  document.getElementById('payModalRemaining').textContent = fmt(remaining);
+  document.getElementById('payModalAmount').value = remaining.toFixed(0);
+  document.getElementById('payModalBg').style.display = 'flex';
+}
+
+function closePayModal() {
+  document.getElementById('payModalBg').style.display = 'none';
+  payModalOrderId = 0;
+}
+
+function submitPayModal() {
+  const method = document.getElementById('payModalMethod').value;
+  const amount = parseFloat(document.getElementById('payModalAmount').value) || 0;
+
+  if (!method) { alert('Please select a payment method.'); return; }
+  if (amount <= 0) { alert('Please enter an amount.'); return; }
+  if (amount > payModalRemaining) { alert('Amount cannot exceed remaining balance of ' + fmt(payModalRemaining)); return; }
+
+  const btn = document.getElementById('payModalSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+  const payload = new URLSearchParams();
+  payload.append('action', 'make_payment');
+  payload.append('order_id', payModalOrderId);
+  payload.append('payment_method', method);
+  payload.append('amount_paid', amount);
+
+  fetch('../logic/crayfish_payment_process.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: payload.toString()
+  })
+    .then(res => res.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-lock"></i> Confirm Payment';
+      if (!data.success) {
+        alert(data.error || 'Payment failed.');
+        return;
+      }
+      alert('Payment of ' + fmt(data.amount_paid) + ' received! ' + (data.remaining > 0 ? 'Remaining: ' + fmt(data.remaining) : 'Order fully paid!'));
+      closePayModal();
+      location.reload();
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-lock"></i> Confirm Payment';
+      console.error(err);
+      alert('Something went wrong. Please try again.');
     });
 }
 
@@ -317,6 +489,12 @@ window.placeOrder       = placeOrder;
 window.openSignInModal  = openSignInModal;
 window.closeSignInModal = closeSignInModal;
 window.submitSignIn     = submitSignIn;
+window.togglePayMode    = togglePayMode;
+window.setFullPayment   = setFullPayment;
+window.cancelOrder      = cancelOrder;
+window.openPayModal     = openPayModal;
+window.closePayModal    = closePayModal;
+window.submitPayModal   = submitPayModal;
 
 // ── Init ──
 onWeightInput();

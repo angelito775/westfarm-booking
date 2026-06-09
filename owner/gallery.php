@@ -191,8 +191,12 @@ $pkField = findField($galleryColumns, ['id', 'gallery_id', 'image_id', $galleryT
                                             <div class="gallery-placeholder"><i class="fas fa-image"></i></div>
                                         <?php endif; ?>
                                         <div class="gallery-caption">
-                                            <p class="gallery-title"><?php echo htmlspecialchars($caption ?: 'Untitled Image'); ?></p>
-                                            <?php if ($facilityLabel): ?><p class="gallery-meta"><?php echo htmlspecialchars($facilityLabel); ?></p><?php endif; ?>
+                                            <?php
+                                                // Prefer caption, fall back to linked facility name, then generic label
+                                                $title = $caption ?: ($facilityLabel ?: 'Gallery Image');
+                                            ?>
+                                            <p class="gallery-title"><?php echo htmlspecialchars($title); ?></p>
+                                            <?php if ($facilityLabel && $facilityLabel !== $title): ?><p class="gallery-meta"><?php echo htmlspecialchars($facilityLabel); ?></p><?php endif; ?>
                                             <?php if (!empty($item['created_at'])): ?><p class="gallery-meta">Uploaded: <?php echo date('M d, Y', strtotime($item['created_at'])); ?></p><?php endif; ?>
                                         </div>
                                     </div>

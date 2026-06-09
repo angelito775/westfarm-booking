@@ -30,12 +30,13 @@ $stmt = $pdo->query(
 $owner_facilities = $stmt->fetchAll();
 $facility_ids = array_column($owner_facilities, 'facility_id');
 
-// KPI: Total Revenue
+// KPI: Total Revenue (exclude cancelled / refunded bookings)
 $stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(total_amount), 0) as total_revenue
+    SELECT COALESCE(SUM(b.total_amount), 0) as total_revenue
     FROM bookings b
     JOIN booking_items bi ON b.booking_id = bi.booking_id
     WHERE bi.facility_id IN (" . implode(',', $facility_ids ?: [0]) . ")
+      AND b.booking_status_id NOT IN (3, 4)
 ");
 $stmt->execute();
 $total_revenue = $stmt->fetch()['total_revenue'] ?? 0;
@@ -90,11 +91,12 @@ $revenue_data = [];
 for ($i = 5; $i >= 0; $i--) {
     $month = date('Y-m', strtotime("-$i months"));
     $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(total_amount), 0) as revenue
+        SELECT COALESCE(SUM(b.total_amount), 0) as revenue
         FROM bookings b
         JOIN booking_items bi ON b.booking_id = bi.booking_id
-        WHERE DATE_FORMAT(b.created_at, '%Y-%m') = ? 
+        WHERE DATE_FORMAT(b.created_at, '%Y-%m') = ?
         AND bi.facility_id IN (" . implode(',', $facility_ids ?: [0]) . ")
+        AND b.booking_status_id NOT IN (3, 4)
     ");
     $stmt->execute([$month]);
     $revenue_data[] = $stmt->fetch()['revenue'];
