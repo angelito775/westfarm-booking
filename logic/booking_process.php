@@ -161,18 +161,17 @@ if ($action === 'owner_add_booking') {
             "SELECT 1 FROM booking_items bi
              JOIN bookings b ON bi.booking_id = b.booking_id
              WHERE bi.facility_id = ?
-               AND bi.check_in_date < ?
-               AND bi.check_out_date > ?
+               AND DATE(bi.check_in_date) < ?
+               AND DATE(bi.check_out_date) > ?
                AND b.booking_status_id NOT IN (
                    SELECT booking_status_id FROM booking_statuses WHERE status_name IN ('Cancelled', 'Refunded')
                )
              LIMIT 1"
         );
-        // booking_items stores datetime, so append time
         $stmt->execute([
             $facility_id,
-            $check_out_date . ' 14:00:00',
-            $check_in_date . ' 12:00:00'
+            $check_out_date,
+            $check_in_date
         ]);
         if ($stmt->fetch()) {
             $pdo->rollBack();
@@ -196,8 +195,8 @@ if ($action === 'owner_add_booking') {
         $stmt->execute([
             $booking_id,
             $facility_id,
-            $check_in_date . ' 12:00:00',
-            $check_out_date . ' 14:00:00',
+            $check_in_date,
+            $check_out_date,
             $price_per_night
         ]);
 

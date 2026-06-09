@@ -319,21 +319,28 @@ document.addEventListener('DOMContentLoaded', () => {
             // Starting a new selection
             checkInDate = new Date(date);
             checkOutDate = null;
-        } else if (date > checkInDate) {
-            // Selecting check-out — verify the range doesn't include booked dates
-            if (isRangeBooked(checkInDate, date, fid)) {
-                showToast('Your selected range includes already-booked dates. Please choose different dates.');
+        } else {
+            // Allow same-day checkout for Cottage, Pool, Event Hall; others need different dates
+            const sameDayCategories = ['Cottage', 'Pool', 'Event Hall'];
+            const allowSameDay = sameDayCategories.includes(selectedFacility.category);
+            const isValidCheckout = allowSameDay ? date >= checkInDate : date > checkInDate;
+            
+            if (isValidCheckout) {
+                // Selecting check-out — verify the range doesn't include booked dates
+                if (isRangeBooked(checkInDate, date, fid)) {
+                    showToast('Your selected range includes already-booked dates. Please choose different dates.');
+                    checkInDate = new Date(date);
+                    checkOutDate = null;
+                    updateBookingSummary();
+                    renderCalendar();
+                    return;
+                }
+                checkOutDate = new Date(date);
+            } else {
+                // Clicked before or on check-in, restart
                 checkInDate = new Date(date);
                 checkOutDate = null;
-                updateBookingSummary();
-                renderCalendar();
-                return;
             }
-            checkOutDate = new Date(date);
-        } else {
-            // Clicked before check-in, restart
-            checkInDate = new Date(date);
-            checkOutDate = null;
         }
         updateBookingSummary();
         renderCalendar();
@@ -415,6 +422,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Helper to format date as YYYY-MM-DD in local timezone (no UTC conversion)
+    function formatDateLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     // --- BOOK NOW BUTTON ---
     bookBtn.addEventListener('click', () => {
         if (!isLoggedIn) {
@@ -449,8 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('confirmBookingSummary').innerHTML = summaryHtml;
         document.getElementById('confirmFacilityId').value = selectedFacility.id;
-        document.getElementById('confirmCheckIn').value = checkInDate.toISOString().split('T')[0];
-        document.getElementById('confirmCheckOut').value = checkOutDate.toISOString().split('T')[0];
+        document.getElementById('confirmCheckIn').value = formatDateLocal(checkInDate);
+        document.getElementById('confirmCheckOut').value = formatDateLocal(checkOutDate);
         document.getElementById('confirmNumGuests').value = totalGuests;
 
         openConfirmBookingModal();

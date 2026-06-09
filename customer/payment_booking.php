@@ -305,7 +305,12 @@ if (isset($_GET['error'])) {
                             </td>
                             <td><?php echo htmlspecialchars($b['facility_name']); ?></td>
                             <td>
-                                <?php echo date('M d', strtotime($b['check_in_date'])); ?> – <?php echo date('M d, Y', strtotime($b['check_out_date'])); ?>
+                                <?php 
+                                    $check_in_obj = DateTime::createFromFormat('Y-m-d', substr($b['check_in_date'], 0, 10));
+                                    $check_out_obj = DateTime::createFromFormat('Y-m-d', substr($b['check_out_date'], 0, 10));
+                                    echo ($check_in_obj ? $check_in_obj->format('M d') : 'N/A') . ' – ' . 
+                                         ($check_out_obj ? $check_out_obj->format('M d, Y') : 'N/A');
+                                ?>
                             </td>
                             <td>
                                 <strong>₱<?php echo number_format($b['total_amount'], 0); ?></strong>

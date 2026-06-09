@@ -42,9 +42,25 @@ if (empty($check_in_date) || empty($check_out_date)) {
 // Validate date order
 $check_in_ts  = strtotime($check_in_date);
 $check_out_ts = strtotime($check_out_date);
-if ($check_in_ts === false || $check_out_ts === false || $check_out_ts <= $check_in_ts) {
+if ($check_in_ts === false || $check_out_ts === false || $check_out_ts < $check_in_ts) {
     header("Location: ../public/booking.php?booking_error=invalid_dates");
     exit();
+}
+
+// Validate category restrictions for same-day bookings
+// Get facility's category
+$stmt = $pdo->prepare("SELECT f.category_id, c.name FROM facilities f LEFT JOIN categories c ON f.category_id = c.category_id WHERE f.facility_id = ?");
+$stmt->execute([$facility_id]);
+$facilityCategory = $stmt->fetch();
+
+if ($check_in_date === $check_out_date) {
+    // Same-day bookings only allowed for specific categories
+    $allowedSameDayCategories = ['Cottage', 'Pool', 'Event Hall'];
+    
+    if ($facilityCategory && !in_array($facilityCategory['name'], $allowedSameDayCategories)) {
+        header("Location: ../public/booking.php?booking_error=invalid_dates");
+        exit();
+    }
 }
 
 try {
@@ -80,8 +96,8 @@ try {
         "SELECT 1 FROM booking_items bi
          JOIN bookings b ON bi.booking_id = b.booking_id
          WHERE bi.facility_id = ?
-           AND bi.check_in_date < ?
-           AND bi.check_out_date > ?
+           AND DATE(bi.check_in_date) < ?
+           AND DATE(bi.check_out_date) > ?
            AND b.booking_status_id NOT IN (
                SELECT booking_status_id FROM booking_statuses WHERE status_name IN ('Cancelled', 'Refunded')
            )
@@ -89,8 +105,8 @@ try {
     );
     $stmt->execute([
         $facility_id,
-        $check_out_date . ' 14:00:00',
-        $check_in_date . ' 12:00:00'
+        $check_out_date,
+        $check_in_date
     ]);
     if ($stmt->fetch()) {
         $pdo->rollBack();
@@ -120,8 +136,8 @@ try {
     $stmt->execute([
         $booking_id,
         $facility_id,
-        $check_in_date . ' 12:00:00',
-        $check_out_date . ' 14:00:00',
+        $check_in_date,
+        $check_out_date,
         $price_per_night
     ]);
 
