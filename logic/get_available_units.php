@@ -24,27 +24,9 @@ if (empty($check_in) || empty($check_out)) {
 // Validate date order
 $check_in_ts = strtotime($check_in);
 $check_out_ts = strtotime($check_out);
-if ($check_in_ts === false || $check_out_ts === false || $check_out_ts < $check_in_ts) {
+if ($check_in_ts === false || $check_out_ts === false || $check_out_ts <= $check_in_ts) {
     echo json_encode(['success' => false, 'message' => 'Check-out date must be after check-in date']);
     exit();
-}
-
-// Validate category restrictions for same-day bookings
-if ($check_in === $check_out) {
-    // Same-day bookings only allowed for specific categories
-    $allowedSameDayCategories = ['Cottage', 'Pool', 'Event Hall'];
-    
-    $stmt = $pdo->prepare("SELECT name FROM categories WHERE category_id = :id");
-    $stmt->execute(['id' => $category_id]);
-    $catResult = $stmt->fetch();
-    
-    if ($catResult && !in_array($catResult['name'], $allowedSameDayCategories)) {
-        echo json_encode([
-            'success' => false,
-            'message' => $catResult['name'] . ' requires multiple nights (check-in and check-out dates must be different)'
-        ]);
-        exit();
-    }
 }
 
 // Make sure category_id is provided and valid
