@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jun 08, 2026 at 01:55 PM
+-- Generation Time: Jun 09, 2026 at 11:15 AM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.30
 
@@ -42,7 +42,8 @@ CREATE TABLE `bookings` (
 --
 
 INSERT INTO `bookings` (`booking_id`, `customer_id`, `booking_status_id`, `payment_status_id`, `total_amount`, `created_at`, `updated_at`) VALUES
-(2, 5, 1, 1, 75000.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28');
+(2, 5, 3, 4, 75000.00, '2026-06-08 11:33:28', '2026-06-09 10:00:05'),
+(3, 5, 3, 1, 22500.00, '2026-06-08 17:25:56', '2026-06-09 09:46:44');
 
 -- --------------------------------------------------------
 
@@ -59,6 +60,14 @@ CREATE TABLE `booking_cancellations` (
   `additional_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `cancelled_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `booking_cancellations`
+--
+
+INSERT INTO `booking_cancellations` (`cancellation_id`, `booking_id`, `reason_id`, `cancelled_by_user_id`, `refund_amount`, `additional_notes`, `cancelled_at`) VALUES
+(1, 3, 1, 5, 0.00, NULL, '2026-06-09 09:46:44'),
+(2, 2, 6, 5, 75000.00, NULL, '2026-06-09 10:00:05');
 
 -- --------------------------------------------------------
 
@@ -82,7 +91,8 @@ CREATE TABLE `booking_items` (
 --
 
 INSERT INTO `booking_items` (`booking_item_id`, `booking_id`, `facility_id`, `check_in_date`, `check_out_date`, `price_at_booking`, `created_at`, `updated_at`) VALUES
-(2, 2, 2, '2026-06-07 12:00:00', '2026-06-17 14:00:00', 7500.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28');
+(2, 2, 2, '2026-06-07 12:00:00', '2026-06-17 14:00:00', 7500.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28'),
+(3, 3, 2, '2026-06-23 12:00:00', '2026-06-26 14:00:00', 7500.00, '2026-06-08 17:25:56', '2026-06-08 17:25:56');
 
 -- --------------------------------------------------------
 
@@ -168,10 +178,42 @@ CREATE TABLE `crayfish_orders` (
   `quantity_kg` decimal(10,2) NOT NULL,
   `price_per_kg` decimal(10,2) NOT NULL,
   `total_amount` decimal(10,2) NOT NULL,
+  `payment_status_id` bigint UNSIGNED NOT NULL DEFAULT '1',
+  `payment_method_id` bigint UNSIGNED DEFAULT NULL,
+  `amount_paid` decimal(10,2) NOT NULL DEFAULT '0.00',
   `pickup_date` datetime DEFAULT NULL,
   `ordered_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `crayfish_orders`
+--
+
+INSERT INTO `crayfish_orders` (`order_id`, `customer_id`, `status_id`, `quantity_kg`, `price_per_kg`, `total_amount`, `payment_status_id`, `payment_method_id`, `amount_paid`, `pickup_date`, `ordered_at`, `updated_at`) VALUES
+(4, 5, 1, 5.00, 150.00, 750.00, 2, 2, 300.00, '2026-06-10 12:00:00', '2026-06-09 10:41:34', '2026-06-09 10:41:34');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `crayfish_payments`
+--
+
+CREATE TABLE `crayfish_payments` (
+  `payment_id` bigint UNSIGNED NOT NULL,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `payment_method_id` bigint UNSIGNED NOT NULL,
+  `amount_paid` decimal(10,2) NOT NULL,
+  `transaction_id` varchar(100) DEFAULT NULL,
+  `payment_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `crayfish_payments`
+--
+
+INSERT INTO `crayfish_payments` (`payment_id`, `order_id`, `payment_method_id`, `amount_paid`, `transaction_id`, `payment_date`) VALUES
+(1, 4, 2, 300.00, 'WC-4-1781001694', '2026-06-09 10:41:34');
 
 -- --------------------------------------------------------
 
@@ -256,6 +298,13 @@ CREATE TABLE `payments` (
   `transaction_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `payment_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `payments`
+--
+
+INSERT INTO `payments` (`payment_id`, `booking_id`, `payment_method_id`, `amount_paid`, `transaction_id`, `payment_date`) VALUES
+(2, 2, 2, 75000.00, 'PAY-2-1780939446', '2026-06-08 17:24:06');
 
 -- --------------------------------------------------------
 
@@ -456,7 +505,17 @@ ALTER TABLE `categories`
 ALTER TABLE `crayfish_orders`
   ADD PRIMARY KEY (`order_id`),
   ADD KEY `fk_crayfish_customer` (`customer_id`),
-  ADD KEY `fk_crayfish_status` (`status_id`);
+  ADD KEY `fk_crayfish_status` (`status_id`),
+  ADD KEY `fk_crayfish_payment_status` (`payment_status_id`),
+  ADD KEY `fk_crayfish_payment_method` (`payment_method_id`);
+
+--
+-- Indexes for table `crayfish_payments`
+--
+ALTER TABLE `crayfish_payments`
+  ADD PRIMARY KEY (`payment_id`),
+  ADD KEY `fk_cpay_order` (`order_id`),
+  ADD KEY `fk_cpay_method` (`payment_method_id`);
 
 --
 -- Indexes for table `facilities`
@@ -539,19 +598,19 @@ ALTER TABLE `user_types`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `booking_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `booking_cancellations`
 --
 ALTER TABLE `booking_cancellations`
-  MODIFY `cancellation_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `cancellation_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `booking_items`
 --
 ALTER TABLE `booking_items`
-  MODIFY `booking_item_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `booking_item_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `booking_statuses`
@@ -575,7 +634,13 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `crayfish_orders`
 --
 ALTER TABLE `crayfish_orders`
-  MODIFY `order_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `order_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `crayfish_payments`
+--
+ALTER TABLE `crayfish_payments`
+  MODIFY `payment_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `facilities`
@@ -599,7 +664,7 @@ ALTER TABLE `order_statuses`
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `payment_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `payment_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `payment_methods`
@@ -669,7 +734,16 @@ ALTER TABLE `booking_items`
 --
 ALTER TABLE `crayfish_orders`
   ADD CONSTRAINT `fk_crayfish_customer` FOREIGN KEY (`customer_id`) REFERENCES `users` (`user_id`),
+  ADD CONSTRAINT `fk_crayfish_payment_method` FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods` (`payment_method_id`),
+  ADD CONSTRAINT `fk_crayfish_payment_status` FOREIGN KEY (`payment_status_id`) REFERENCES `payment_statuses` (`payment_status_id`),
   ADD CONSTRAINT `fk_crayfish_status` FOREIGN KEY (`status_id`) REFERENCES `order_statuses` (`status_id`);
+
+--
+-- Constraints for table `crayfish_payments`
+--
+ALTER TABLE `crayfish_payments`
+  ADD CONSTRAINT `fk_cpay_method` FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods` (`payment_method_id`),
+  ADD CONSTRAINT `fk_cpay_order` FOREIGN KEY (`order_id`) REFERENCES `crayfish_orders` (`order_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `facilities`
