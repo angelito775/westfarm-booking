@@ -158,7 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedFacility) {
             facilityBox.style.display = 'block';
             facilityName.textContent = selectedFacility.name;
-            facilityPrice.textContent = `₱${selectedFacility.price.toLocaleString()} / night`;
+            const isPool = selectedFacility.category === 'Pool';
+            facilityPrice.textContent = isPool
+                ? `₱${selectedFacility.price.toLocaleString()} / person`
+                : `₱${selectedFacility.price.toLocaleString()} / night`;
         } else {
             facilityBox.style.display = 'none';
             totalBox.style.display = 'none';
@@ -370,8 +373,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedFacility && checkInDate && checkOutDate) {
             const diffTime = Math.abs(checkOutDate - checkInDate);
             const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            if (nights > 0) {
-                const total = selectedFacility.price * nights;
+            // Pool category: price is per person (entrance fee), not per night
+            // Adults pay full price, kids pay ₱100 each
+            const isPool = selectedFacility.category === 'Pool';
+            const POOL_KIDS_PRICE = 100;
+            let total = 0;
+            if (isPool) {
+                total = (selectedFacility.price * adults) + (POOL_KIDS_PRICE * kids);
+            } else {
+                if (nights > 0) {
+                    total = selectedFacility.price * nights;
+                }
+            }
+            if (total > 0) {
                 totalAmount.textContent = `₱${total.toLocaleString()}`;
                 totalBox.style.display = 'block';
             } else {
@@ -406,6 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
             kids = Math.max(0, kids + dir);
             kidsEl.textContent = kids;
         }
+        // Recalculate total — important for Pool (entrance-based per person)
+        updateTotal();
     };
 
     const showToast = (message) => {
@@ -449,7 +465,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalGuests = adults + kids;
         const diffTime = Math.abs(checkOutDate - checkInDate);
         const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const total = selectedFacility.price * nights;
+        // Pool category: entrance-based pricing (per person, not per night)
+        // Adults pay full price, kids pay ₱100 each
+        const isPool = selectedFacility.category === 'Pool';
+        const POOL_KIDS_PRICE = 100;
+        let total = 0;
+        if (isPool) {
+            total = (selectedFacility.price * adults) + (POOL_KIDS_PRICE * kids);
+        } else {
+            total = selectedFacility.price * nights;
+        }
+
+        // Build pricing breakdown label
+        let priceLabel;
+        if (isPool) {
+            const adultLine = `₱${selectedFacility.price.toLocaleString()} × ${adults} adult${adults > 1 ? 's' : ''}`;
+            const kidLine = kids > 0 ? ` + ₱${POOL_KIDS_PRICE.toLocaleString()} × ${kids} kid${kids > 1 ? 's' : ''}` : '';
+            priceLabel = adultLine + kidLine;
+        } else {
+            priceLabel = `₱${selectedFacility.price.toLocaleString()} × ${nights} night${nights > 1 ? 's' : ''}`;
+        }
 
         const summaryHtml = `
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
@@ -458,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="color:#6b7280;">Check-out:</div><div style="font-weight:600;">${checkOutDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
                 <div style="color:#6b7280;">Nights:</div><div style="font-weight:600;">${nights}</div>
                 <div style="color:#6b7280;">Guests:</div><div style="font-weight:600;">${totalGuests} (${adults} adults, ${kids} kids)</div>
+                <div style="color:#6b7280;">Rate:</div><div style="font-weight:600;">${priceLabel}</div>
                 <div style="color:#6b7280;">Total:</div><div style="font-weight:700;font-size:18px;color:#1a3a1a;">₱${total.toLocaleString()}</div>
             </div>
         `;
@@ -467,6 +503,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('confirmCheckIn').value = formatDateLocal(checkInDate);
         document.getElementById('confirmCheckOut').value = formatDateLocal(checkOutDate);
         document.getElementById('confirmNumGuests').value = totalGuests;
+        document.getElementById('confirmNumAdults').value = adults;
+        document.getElementById('confirmNumKids').value = kids;
+        document.getElementById('confirmTotalAmount').value = total;
 
         openConfirmBookingModal();
     });

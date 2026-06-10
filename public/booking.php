@@ -319,6 +319,9 @@ if ($is_logged_in) {
         <input type="hidden" name="check_in_date" id="confirmCheckIn" value="">
         <input type="hidden" name="check_out_date" id="confirmCheckOut" value="">
         <input type="hidden" name="num_guests" id="confirmNumGuests" value="">
+        <input type="hidden" name="num_adults" id="confirmNumAdults" value="">
+        <input type="hidden" name="num_kids" id="confirmNumKids" value="">
+        <input type="hidden" name="total_amount" id="confirmTotalAmount" value="">
         <button type="submit" class="auth-submit-btn" id="confirmBookingBtn">
           <i class="fas fa-check-circle"></i> Confirm &amp; Submit Booking
         </button>

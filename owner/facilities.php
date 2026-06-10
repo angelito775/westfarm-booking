@@ -677,22 +677,43 @@ if (!$statusColumn) {
             const price = parseFloat(option.dataset.price);
             const checkInDate = new Date(checkinInput.value);
             const checkOutDate = new Date(checkoutInput.value);
-            
-            // For same-day bookings, count as 1 night
-            const nights = checkInDate.toDateString() === checkOutDate.toDateString() 
-                ? 1 
-                : Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-            
-            if (nights > 0) {
-                priceAmount.textContent = `₱ ${(price * nights).toLocaleString()}`;
+
+            // Get category name from dropdown
+            const categoryOption = categoryInput.options[categoryInput.selectedIndex];
+            const selectedCategoryName = categoryOption ? categoryOption.text : '';
+            const isPool = selectedCategoryName === 'Pool';
+
+            // Get number of guests
+            const numGuestsInput = document.querySelector('#reservationForm [name="num_guests"]');
+            const numGuests = numGuestsInput ? Math.max(1, parseInt(numGuestsInput.value, 10) || 1) : 1;
+
+            let total = 0;
+
+            if (isPool) {
+                // Pool: per-person entrance fee (price × number of guests)
+                total = price * numGuests;
+            } else {
+                // Other categories: per-night pricing
+                const nights = checkInDate.toDateString() === checkOutDate.toDateString()
+                    ? 1
+                    : Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+                if (nights > 0) {
+                    total = price * nights;
+                }
+            }
+
+            if (total > 0) {
+                priceAmount.textContent = `₱ ${total.toLocaleString()}`;
                 priceDiv.style.display = 'block';
+            } else {
+                priceDiv.style.display = 'none';
             }
         }
 
-        // Event listeners
-        checkinInput.addEventListener('change', fetchAvailableUnits);
-        checkoutInput.addEventListener('change', fetchAvailableUnits);
-        
+        // Event listeners for price calculation
+        checkinInput.addEventListener('change', function() { fetchAvailableUnits(); calculatePrice(); });
+        checkoutInput.addEventListener('change', function() { fetchAvailableUnits(); calculatePrice(); });
+
         // When category changes, reset unit selection
         categoryInput.addEventListener('change', function() {
             unitSelect.value = '';  // Reset unit selection
@@ -700,8 +721,15 @@ if (!$statusColumn) {
             priceDiv.style.display = 'none';
             fetchAvailableUnits();
         });
-        
+
         unitSelect.addEventListener('change', calculatePrice);
+
+        // Reupdate price in realtime when number of guests changes
+        const numGuestsField = document.querySelector('#reservationForm [name="num_guests"]');
+        if (numGuestsField) {
+            numGuestsField.addEventListener('input', calculatePrice);
+            numGuestsField.addEventListener('change', calculatePrice);
+        }
 
         // ── Booking Status → Payment Status linkage ──────────────
         const bookingStatusSelect = document.getElementById('booking_status_select');

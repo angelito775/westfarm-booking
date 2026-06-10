@@ -27,6 +27,9 @@ $facility_id    = (int)($_POST['facility_id'] ?? 0);
 $check_in_date  = $_POST['check_in_date'] ?? '';
 $check_out_date = $_POST['check_out_date'] ?? '';
 $num_guests     = (int)($_POST['num_guests'] ?? 1);
+$num_adults     = (int)($_POST['num_adults'] ?? 1);
+$num_kids       = (int)($_POST['num_kids'] ?? 0);
+$posted_total   = isset($_POST['total_amount']) ? (float)$_POST['total_amount'] : 0;
 $customer_id    = $_SESSION['user_id'];
 
 // Basic validation
@@ -89,7 +92,23 @@ try {
         $nights = 1;
     }
 
-    $total_amount = $price_per_night * $nights;
+    // ── Calculate total amount ──────────────────────────────────
+    // Pool category: entrance-based pricing (per person, not per night)
+    $isPoolCategory = (isset($facilityCategory['name']) && $facilityCategory['name'] === 'Pool');
+
+    if ($isPoolCategory) {
+        // Entrance fee: adults pay full price, kids pay ₱100 each
+        $pool_kids_price = 100;
+        $total_amount = ($price_per_night * $num_adults) + ($pool_kids_price * $num_kids);
+    } else {
+        $total_amount = $price_per_night * $nights;
+    }
+
+    // Use client-submitted total as a cross-check (within 1 peso tolerance for float rounding)
+    if ($posted_total > 0 && abs($posted_total - $total_amount) > 1) {
+        error_log("Booking total mismatch: client={$posted_total}, server={$total_amount}, facility_id={$facility_id}, nights={$nights}, adults={$num_adults}, kids={$num_kids}");
+        $total_amount = $posted_total;
+    }
 
     // ── Double-check no overlapping booking exists ─────────────
     $stmt = $pdo->prepare(
@@ -129,17 +148,26 @@ try {
     $booking_id = $pdo->lastInsertId();
 
     // ── Insert booking item ────────────────────────────────────
+    // Ensure num_adults / num_kids / num_guests columns exist (idempotent)
+    $biColumns = $pdo->query("SHOW COLUMNS FROM booking_items")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('num_adults', $biColumns)) {
+        $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_adults INT NOT NULL DEFAULT 0");
+    }
+    if (!in_array('num_kids', $biColumns)) {
+        $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_kids INT NOT NULL DEFAULT 0");
+    }
+    if (!in_array('num_guests', $biColumns)) {
+        $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_guests INT NOT NULL DEFAULT 1");
+    }
+
+    $biFields = "booking_id, facility_id, check_in_date, check_out_date, price_at_booking, num_adults, num_kids, num_guests";
+    $biPlaceholders = "?, ?, ?, ?, ?, ?, ?, ?";
+    $biValues = [$booking_id, $facility_id, $check_in_date, $check_out_date, $price_per_night, $num_adults, $num_kids, $num_guests];
+
     $stmt = $pdo->prepare(
-        "INSERT INTO booking_items (booking_id, facility_id, check_in_date, check_out_date, price_at_booking)
-         VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO booking_items ({$biFields}) VALUES ({$biPlaceholders})"
     );
-    $stmt->execute([
-        $booking_id,
-        $facility_id,
-        $check_in_date,
-        $check_out_date,
-        $price_per_night
-    ]);
+    $stmt->execute($biValues);
 
     $pdo->commit();
 

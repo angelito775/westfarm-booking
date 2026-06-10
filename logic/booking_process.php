@@ -187,17 +187,34 @@ if ($action === 'owner_add_booking') {
         $stmt->execute([$customer_id, $booking_status_id, $payment_status_id, $total_amount]);
         $booking_id = $pdo->lastInsertId();
 
+        // ── Ensure num_adults / num_kids columns exist ─────────────
+        $biColumns = $pdo->query("SHOW COLUMNS FROM booking_items")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('num_adults', $biColumns)) {
+            $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_adults INT NOT NULL DEFAULT 0");
+        }
+        if (!in_array('num_kids', $biColumns)) {
+            $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_kids INT NOT NULL DEFAULT 0");
+        }
+        if (!in_array('num_guests', $biColumns)) {
+            $pdo->exec("ALTER TABLE booking_items ADD COLUMN num_guests INT NOT NULL DEFAULT 1");
+        }
+
         // ── Insert booking item ────────────────────────────────────
+        $num_adults = $num_guests; // Manual booking: all guests counted as adults by default
+        $num_kids = 0;
         $stmt = $pdo->prepare(
-            "INSERT INTO booking_items (booking_id, facility_id, check_in_date, check_out_date, price_at_booking)
-             VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO booking_items (booking_id, facility_id, check_in_date, check_out_date, price_at_booking, num_adults, num_kids, num_guests)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $booking_id,
             $facility_id,
             $check_in_date,
             $check_out_date,
-            $price_per_night
+            $price_per_night,
+            $num_adults,
+            $num_kids,
+            $num_guests
         ]);
 
         // ── If payment status is Paid, create a payment record ─────

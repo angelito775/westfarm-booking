@@ -82,6 +82,8 @@ CREATE TABLE `booking_items` (
   `check_in_date` datetime NOT NULL,
   `check_out_date` datetime NOT NULL,
   `price_at_booking` decimal(10,2) NOT NULL,
+  `num_adults` int NOT NULL DEFAULT '1',
+  `num_kids` int NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -90,9 +92,9 @@ CREATE TABLE `booking_items` (
 -- Dumping data for table `booking_items`
 --
 
-INSERT INTO `booking_items` (`booking_item_id`, `booking_id`, `facility_id`, `check_in_date`, `check_out_date`, `price_at_booking`, `created_at`, `updated_at`) VALUES
-(2, 2, 2, '2026-06-07 12:00:00', '2026-06-17 14:00:00', 7500.00, '2026-06-08 11:33:28', '2026-06-08 11:33:28'),
-(3, 3, 2, '2026-06-23 12:00:00', '2026-06-26 14:00:00', 7500.00, '2026-06-08 17:25:56', '2026-06-08 17:25:56');
+INSERT INTO `booking_items` (`booking_item_id`, `booking_id`, `facility_id`, `check_in_date`, `check_out_date`, `price_at_booking`, `num_adults`, `num_kids`, `created_at`, `updated_at`) VALUES
+(2, 2, 2, '2026-06-07 12:00:00', '2026-06-17 14:00:00', 7500.00, 1, 0, '2026-06-08 11:33:28', '2026-06-08 11:33:28'),
+(3, 3, 2, '2026-06-23 12:00:00', '2026-06-26 14:00:00', 7500.00, 1, 0, '2026-06-08 17:25:56', '2026-06-08 17:25:56');
 
 -- --------------------------------------------------------
 

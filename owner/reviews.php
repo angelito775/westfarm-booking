@@ -94,6 +94,51 @@ $averageRating = $ratingCount ? round($totalRating / $ratingCount, 1) : null;
     <title>Guest Reviews | Owner Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600&family=Pinyon+Script&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ── Under Study overlay ── */
+        .under-study-banner {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .under-study-banner .us-icon {
+            font-size: 22px;
+            color: #d97706;
+            flex-shrink: 0;
+        }
+        .under-study-banner .us-text {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #92400e;
+        }
+        .under-study-banner .us-sub {
+            font-size: 11px;
+            color: #a16207;
+            font-family: 'Lora', serif;
+            margin-top: 2px;
+        }
+        .reviews-content-blur {
+            filter: blur(3px);
+            pointer-events: none;
+            user-select: none;
+            position: relative;
+        }
+        .reviews-content-blur::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+        }
+    </style>
     <link rel="stylesheet" href="../assets/css/dashboard.css">
 </head>
 <body>
@@ -126,6 +171,15 @@ $averageRating = $ratingCount ? round($totalRating / $ratingCount, 1) : null;
                         <button class="section-action" onclick="alert('Review moderation will be added later');">Refresh Reviews</button>
                     </div>
                     <div class="section-body">
+                        <!-- Under Study Banner -->
+                        <div class="under-study-banner">
+                            <div class="us-icon"><i class="fas fa-flask"></i></div>
+                            <div>
+                                <div class="us-text">Under Study</div>
+                                <div class="us-sub">This module is currently being refined. Some data may be incomplete or subject to change.</div>
+                            </div>
+                        </div>
+                        <div class="reviews-content-blur">
                         <?php if (!$reviewTable): ?>
                             <div class="notification-card">
                                 <p>No reviews table was found in the database.</p>
@@ -182,6 +236,7 @@ $averageRating = $ratingCount ? round($totalRating / $ratingCount, 1) : null;
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
+                        </div><!-- end .reviews-content-blur -->
                     </div>
                 </div>
             </main>
